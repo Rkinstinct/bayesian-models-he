@@ -12,14 +12,14 @@
 <nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
 <h1>שיעור 14: GP ב-PyMC: המתכון המלא בשבעה צעדים</h1>
 <p class="fact">תהליכים גאוסיאניים</p>
-<p class="intro">priors לפרמטרי הקרנל, marginal likelihood, ותחזיות עם conditional</p>
+<p class="intro">אפריוריים לפרמטרי הקרנל, נראות שולית, ותחזיות עם conditional</p>
 <p class="src">מבוסס על notebook 14 (Pymc_mcmc)</p>
 <h2 class="grouplabel">מה נלמד</h2>
-<ol class="steps"><li>לבנות מודל GP שלם ב-PyMC עם pm.gp</li><li>לשים priors על פרמטרי הקרנל (במקום לנחש אותם)</li><li>להבין את gp.Marginal ואת הנראות השולית</li><li>לייצר תחזיות על רשת חדשה עם gp.conditional</li></ol>
+<ol class="steps"><li>לבנות מודל GP שלם ב-PyMC עם המודול pm.gp</li><li>לשים אפריוריים על פרמטרי הקרנל, במקום לנחש אותם</li><li>להבין את gp.Marginal ואת הנראות השולית (Marginal Likelihood)</li><li>לייצר תחזיות על רשת נקודות חדשה עם gp.conditional</li></ol>
 <h2 class="grouplabel">השיעור</h2>
-<h3 class="lh">מדגימה ידנית למודל שלם</h3>
-<p>בשיעור 12 חישבנו GP ידנית עם ℓ ו-σf קבועים. אבל איך בוחרים אותם? התשובה הבייסיאנית: לא בוחרים - שמים עליהם prior ודוגמים את הפוסטריור שלהם בדיוק כמו כל פרמטר אחר. PyMC עושה את זה עם מודול pm.gp.</p>
-<h3 class="lh">שבעת הצעדים (מלמטה למעלה)</h3>
+<h3 class="lh">מחישוב ידני למודל שלם</h3>
+<p>בשיעור 12 חישבנו GP ידנית עם ℓ ו-σf קבועים. אבל איך בוחרים אותם? התשובה הבייסיאנית: לא בוחרים. שמים עליהם אפריורי ודוגמים את הפוסטריורי שלהם בדיוק כמו כל פרמטר אחר. PyMC עושה את זה באמצעות המודול pm.gp.</p>
+<h3 class="lh">שבעת הצעדים, מלמטה למעלה</h3>
 <figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מודל GP מלא ב-PyMC</span><button type="button" class="copy" data-code="import pymc as pm
 import numpy as np
 
@@ -69,11 +69,11 @@ with pm.Model() as model:
 
     # 1. דגימה
     marginal_post = pm.sample(1000)</code></pre></figure>
-<p>שימו לב לסדר ההצגה הפוך: בונים את המודל מהסוף להתחלה. קודם priors לפרמטרים, מהם בונים קרנל, מהקרנל GP, ואז הנראות שמחברת את הנתונים. ה-marginal_likelihood עושה את החשבון הכבד של שיעור 12 (ההתניה הגאוסיאנית) מאחורי הקלעים.</p>
+<ul class="lb"><li>שורות 7: שני אפריוריים לפרמטרי הקרנל - ℓ (אורך הסקאלה) עם גמא, ו-η (עוצמת התנודות) עם HalfCauchy, שתיהן התפלגויות חיוביות.</li><li>שורות 6-5: בונים מהם את הקרנל (Matern52 מוכפל ב-η²) ואת פונקציית הממוצע, כאן אפס.</li><li>שורה 4: pm.gp.Marginal יוצר את אובייקט ה-GP עצמו.</li><li>שורות 3-2: אפריורי לרעש המדידה, ואז החיבור לנתונים. הפונקציה marginal_likelihood עושה מאחורי הקלעים את כל החשבון של שיעור 12 (ההתניה הגאוסיאנית) ומחשבת את הנראות השולית: כמה הנתונים סבירים בהינתן המודל.</li><li>שורה 1: דגימה רגילה עם pm.sample. התוצאה היא פוסטריורי על פרמטרי הקרנל והרעש.</li></ul>
 <figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">קריאת תוצאות הפרמטרים</span><button type="button" class="copy" data-code="pm.summary(marginal_post).round(2)">העתק</button></div><pre><code>pm.summary(marginal_post).round(2)</code></pre></figure>
-<div class="exp"><span class="expt">פלט צפוי</span>טבלה עם הפוסטריור של ℓ, η ו-σ: ממוצע, HDI, ESS ו-r_hat - בדיוק כמו כל מודל. למדנו את פרמטרי הקרנל מהנתונים, לא ניחשנו אותם.</div>
+<div class="exp"><span class="expt">פלט צפוי</span>טבלה עם הפוסטריורי של ℓ, η ו-σ: ממוצע, HDI, ESS ו-r_hat, בדיוק כמו בכל מודל. למדנו את פרמטרי הקרנל מהנתונים, ולא ניחשנו אותם.</div>
 <h3 class="lh">תחזיות: ה-conditional</h3>
-<p>אחרי שהמודל התאים, רוצים תחזיות על נקודות חדשות. gp.conditional מוסיף למודל משתנה חדש שהוא הפוסטריור של הפונקציה על רשת חדשה, מותנה בנתונים ובדגימות הפרמטרים שכבר יש לנו.</p>
+<p>אחרי שהמודל התאים, רוצים תחזיות על נקודות חדשות. הפונקציה gp.conditional מוסיפה למודל משתנה חדש: הפוסטריורי של הפונקציה על רשת חדשה, מותנה בנתונים ובדגימות הפרמטרים שכבר נצברו.</p>
 <figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">תחזית על רשת חדשה</span><button type="button" class="copy" data-code="X_new = np.linspace(-3, 3, 100)[:, None]
 
 with model:
@@ -89,21 +89,21 @@ with model:
 with model:
     pred_samples = pm.sample_posterior_predictive(
         marginal_post, var_names=['f_pred'])</code></pre></figure>
-<div class="exp"><span class="expt">פלט צפוי</span>pred_samples מכיל דגימות של ערכי הפונקציה בכל 100 הנקודות. הממוצע הוא הקו הצפוי, והפיזור בין הדגימות הוא פס אי-הוודאות - צר ליד הנתונים, רחב הרחק מהם.</div>
+<div class="exp"><span class="expt">פלט צפוי</span>pred_samples מכיל דגימות של ערכי הפונקציה בכל 100 הנקודות. הממוצע הוא הקו הצפוי, והפיזור בין הדגימות הוא פס אי-וודאות: צר ליד הנתונים, רחב הרחק מהם.</div>
 <h3 class="lh">שאלות הסתברות ישירות מהתחזית</h3>
 <figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מה ההסתברות שב-x=0 הערך שלילי?</span><button type="button" class="copy" data-code="preds = pred_samples.posterior_predictive['f_pred'].values
 # עמודה 50 מתאימה ל-x=0
 (preds[..., 50] &lt; 0).mean()">העתק</button></div><pre><code>preds = pred_samples.posterior_predictive['f_pred'].values
 # עמודה 50 מתאימה ל-x=0
 (preds[..., 50] &lt; 0).mean()</code></pre></figure>
-<p class="key">אותו דפוס כל הדרך: דגימות → ספירה → הסתברות. ה-GP רק מרחיב את זה מפרמטרים לפונקציה שלמה.</p>
+<p class="key">אותו דפוס לאורך כל הדרך: דגימות, ספירה, הסתברות. ה-GP רק מרחיב את הרעיון מפרמטרים בודדים לפונקציה שלמה.</p>
 <h2 class="grouplabel">תרגיל</h2>
-<details class="fold"><summary>הצג את התרגיל</summary><p>שנו את הקרנל מ-Matern52 ל-ExpQuad והריצו מחדש. מה קורה לפוסטריור של ℓ ולחלקות של התחזית? מתי זה עלול להזיק?</p></details>
-<details class="fold"><summary>הצג פתרון</summary><p>עם ExpQuad התחזיות חלקות יותר. אם לנתונים יש שינויים חדים אמיתיים, ה-ExpQuad "ישייף" אותם ויתן פס אי-וודאות לא הוגן סביבם - בדיוק המקרה שבו Matern32 בטוח יותר.</p></details>
+<details class="fold"><summary>הצג את התרגיל</summary><p>שנו את הקרנל מ-Matern52 ל-ExpQuad והריצו מחדש. מה קורה לפוסטריורי של ℓ ולחלקות של התחזית? מתי זה עלול להזיק?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>עם ExpQuad התחזיות חלקות יותר. אם בנתונים יש שינויים חדים אמיתיים, ה-ExpQuad "ישייף" אותם ויתן פס אי-וודאות לא הוגן סביבם. בדיוק במקרה כזה Matern32 בטוח יותר.</p></details>
 <h2 class="grouplabel">בדקו את עצמכם</h2>
-<details class="fold"><summary>למה שמים priors על ℓ ו-η?</summary><p>כי הם פרמטרים לא ידועים כמו כל פרמטר אחר - במקום לנחש, לומדים אותם מהנתונים דרך הפוסטריור.</p></details>
-<details class="fold"><summary>מה עושה gp.marginal_likelihood?</summary><p>מחבר את הנתונים למודל: מחשב (פנימית) את הנראות השולית של הנתונים בהינתן ה-GP והרעש.</p></details>
-<details class="fold"><summary>מה ההבדל בין conditional ל-marginal_likelihood?</summary><p>marginal_likelihood משמש לאימון (חיבור הנתונים). conditional נוסף אחר כך כדי לקבל תחזיות על נקודות חדשות.</p></details>
+<details class="fold"><summary>מדוע שמים אפריוריים על ℓ ו-η?</summary><p>כי הם פרמטרים לא ידועים כמו כל פרמטר אחר. במקום לנחש אותם, לומדים אותם מהנתונים דרך הפוסטריורי.</p></details>
+<details class="fold"><summary>מה עושה gp.marginal_likelihood?</summary><p>מחבר את הנתונים למודל: מחשב פנימית את הנראות השולית של הנתונים בהינתן ה-GP והרעש.</p></details>
+<details class="fold"><summary>מה ההבדל בין conditional ל-marginal_likelihood?</summary><p>marginal_likelihood משמש לאימון, כלומר לחיבור הנתונים. conditional נוסף אחר כך כדי לקבל תחזיות על נקודות חדשות.</p></details>
 <nav class="lnav">
 <a class="btn" href="lesson-13.html">← שיעור 13</a>
 <a class="btn" href="index.html">כל השיעורים</a>
