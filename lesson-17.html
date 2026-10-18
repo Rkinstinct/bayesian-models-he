@@ -12,13 +12,13 @@
 <nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
 <h1>שיעור 17: אופטימיזציה בייסיאנית: הסיור הבסיסי</h1>
 <p class="fact">אופטימיזציה ובנדיטים</p>
-<p class="intro">למצוא מקסימום של קופסה שחורה במינימום ניסיונות - עם חבילת bayesian-optimization</p>
+<p class="intro">למצוא מקסימום של קופסה שחורה במינימום ניסיונות - עם החבילה bayesian-optimization</p>
 <p class="src">מבוסס על notebook 17 (basic_tour)</p>
 <h2 class="grouplabel">מה נלמד</h2>
-<ol class="steps"><li>להבין למה אופטימיזציה בייסיאנית מתאימה לפונקציות יקרות</li><li>להריץ אופטימיזציה מלאה עם BayesianOptimization</li><li>לשנות גבולות באמצע ולהדריך את החיפוש עם probe</li><li>לשמור ולטעון התקדמות בין ריצות</li></ol>
+<ol class="steps"><li>להבין למה אופטימיזציה בייסיאנית מתאימה לפונקציות יקרות</li><li>להריץ אופטימיזציה מלאה עם BayesianOptimization</li><li>לשנות גבולות באמצע התהליך ולהדריך את החיפוש עם probe</li><li>לשמור ולטעון התקדמות בין ריצות</li></ol>
 <h2 class="grouplabel">השיעור</h2>
 <h3 class="lh">הבעיה: פונקציה יקרה מדי לסרוק</h3>
-<p>נניח שכל הפעלה של הפונקציה עולה הרבה: אימון מודל שלוקח שעות, ניסוי במעבדה, סימולציה. אי אפשר לנסות 10,000 נקודות. אופטימיזציה בייסיאנית פותרת את זה: בונה מודל GP של הפונקציה מהנקודות שכבר ניסינו, ובכל צעד בוחר את הנקודה הבאה שהכי משתלם לבדוק - שילוב של "כנראה טוב שם" ו"אנחנו לא יודעים שם כלום". היא חייבת גבולות: מגדירים טווח חיפוש לכל פרמטר.</p>
+<p>נניח שכל הפעלה של הפונקציה עולה הרבה: אימון מודל שלוקח שעות, ניסוי במעבדה, סימולציה ארוכה. אי אפשר לנסות 10,000 נקודות כדי למצוא את המקסימום. אופטימיזציה בייסיאנית (Bayesian Optimization) פותרת בדיוק את זה: היא בונה מודל GP של הפונקציה מתוך הנקודות שכבר ניסינו, ובכל צעד בוחרת את הנקודה הבאה שהכי משתלם לבדוק - שילוב של "כנראה שם טוב" ו"שם אנחנו לא יודעים כלום". היא חייבת גבולות: מגדירים טווח חיפוש לכל פרמטר.</p>
 <figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">אופטימיזציה מלאה בעשר שורות</span><button type="button" class="copy" data-code="# !pip install bayesian-optimization==1.5.1
 from bayes_opt import BayesianOptimization
 
@@ -54,18 +54,18 @@ optimizer = BayesianOptimization(
 
 optimizer.maximize(init_points=2, n_iter=3)
 print(optimizer.max)</code></pre></figure>
-<div class="exp"><span class="expt">פלט צפוי</span>init_points=2: שתי נקודות אקראיות להתחלה. n_iter=3: שלוש איטרציות חכמות מונחות GP. בסוף optimizer.max מחזיר את הפרמטרים הטובים ביותר ואת ערך המטרה שם. כל הנקודות שנבדקו זמינות ב-optimizer.res.</div>
+<ul class="lb"><li>black_box_function מייצגת את ה"קופסה השחורה": בחיים אמיתיים זו יכולה להיות הרצת ניסוי אמיתית; כאן זו פונקציה מתמטית פשוטה.</li><li>pbounds מגדיר את גבולות החיפוש לכל פרמטר: כאן x1 בין 2 ל-4, ו-y בין -3 ל-3.</li><li>BayesianOptimization יוצר את האופטימייזר: הוא מקבל את הפונקציה ואת הגבולות, ובונה GP פנימי משלו.</li><li>optimizer.maximize מפעיל את החיפוש: init_points=2 זורע שתי נקודות אקראיות להתחלה, ו-n_iter=3 מוסיף שלוש איטרציות חכמות שמונחות על ידי ה-GP.</li><li>optimizer.max מחזיר את הפרמטרים הטובים ביותר שנמצאו ואת ערך הפונקציה שם. כל הנקודות שנבדקו זמינות ב-optimizer.res.</li></ul>
 <h3 class="lh">לשנות גבולות באמצע</h3>
 <figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">set_bounds והמשך מאותה נקודה</span><button type="button" class="copy" data-code="optimizer.set_bounds(new_bounds={&quot;x1&quot;: (-2, 3)})
 optimizer.maximize(init_points=0, n_iter=5)  # init_points=0: אין צורך באקראיות חדשות">העתק</button></div><pre><code>optimizer.set_bounds(new_bounds={"x1": (-2, 3)})
 optimizer.maximize(init_points=0, n_iter=5)  # init_points=0: אין צורך באקראיות חדשות</code></pre></figure>
 <h3 class="lh">להדריך את החיפוש: probe</h3>
-<p>אם יש לכם ניחוש מושכל היכן המקסימום, אפשר לומר לאופטימייזר לבדוק שם ספציפית. עם lazy=True הנקודה תיבדק ב-maximize הבא, לפני שה-GP מתעדכן - כך ההדרכה נכנסת לתהליך.</p>
+<p>אם יש לכם ניחוש מושכל היכן נמצא המקסימום, אפשר לומר לאופטימייזר לבדוק שם ספציפית. עם lazy=True הנקודה תיבדק בקריאת maximize הבאה, לפני שה-GP מתעדכן - כך ההדרכה נכנסת לתהליך.</p>
 <figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">נקודת בדיקה יזומה</span><button type="button" class="copy" data-code="optimizer.probe(params={&quot;x1&quot;: 0.5, &quot;y&quot;: 0.7}, lazy=True)
-# או כרשימה - סדר אלפביתי של הפרמטרים (optimizer.space.keys)
+# או כרשימה - בסדר האלפביתי של הפרמטרים (optimizer.space.keys)
 optimizer.probe(params=[-0.2, 0.1], lazy=True)
 optimizer.maximize(init_points=0, n_iter=0)">העתק</button></div><pre><code>optimizer.probe(params={"x1": 0.5, "y": 0.7}, lazy=True)
-# או כרשימה - סדר אלפביתי של הפרמטרים (optimizer.space.keys)
+# או כרשימה - בסדר האלפביתי של הפרמטרים (optimizer.space.keys)
 optimizer.probe(params=[-0.2, 0.1], lazy=True)
 optimizer.maximize(init_points=0, n_iter=0)</code></pre></figure>
 <h3 class="lh">שמירה וטעינה</h3>
@@ -92,14 +92,15 @@ new_optimizer = BayesianOptimization(
     f=black_box_function, pbounds=pbounds, verbose=2, random_state=1)
 for entry in loaded_log:
     new_optimizer.register(params=entry["params"], target=entry["target"])</code></pre></figure>
-<p class="key">אופטימיזציה בייסיאנית = GP על הפונקציה + כלל בחירה חכם של הנקודה הבאה. נבנה לעולם שבו כל קריאה לפונקציה יקרה.</p>
+<ul class="lb"><li>optimizer.res הוא היומן של כל הנקודות שנבדקו: הפרמטרים והתוצאה בכל נקודה.</li><li>json.dump שומר את היומן לקובץ, וכך אפשר להפסיק את העבודה ולחזור אליה.</li><li>בחלק השני: יוצרים אופטימייזר חדש ומאכילים אותו ביומן הישן נקודה-נקודה באמצעות register - והוא ממשיך מאותו מקום בדיוק.</li></ul>
+<p class="key">אופטימיזציה בייסיאנית = מודל GP על הפונקציה + כלל בחירה חכם של הנקודה הבאה. היא נבנתה לעולם שבו כל קריאה לפונקציה יקרה.</p>
 <h2 class="grouplabel">תרגיל</h2>
 <details class="fold"><summary>הצג את התרגיל</summary><p>הריצו אופטימיזציה על הפונקציה מהדוגמה עם pbounds צרים מאוד סביב ערך אחד, ואז הרחיבו עם set_bounds. האם התוצאה הסופית זהה להרצה עם גבולות רחבים מההתחלה?</p></details>
-<details class="fold"><summary>הצג פתרון</summary><p>בדרך כלל דומה אבל לא זהה: ההיסטוריה (אילו נקודות נבדקו) שונה, וה-GP מתעדכן שונה. המסקנה: הגבולות הם חלק מהמודל - הם קובעים איפה בכלל מחפשים, ואין "תשובה נכונה" אחת לחלופין טובות.</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>בדרך כלל דומה אבל לא זהה: ההיסטוריה, כלומר אילו נקודות נבדקו, שונה, וה-GP מתעדכן אחרת. המסקנה: הגבולות הם חלק מהמודל. הם קובעים היכן בכלל מחפשים, ואין "תשובה נכונה" אחת לכל בחירה של גבולות.</p></details>
 <h2 class="grouplabel">בדקו את עצמכם</h2>
-<details class="fold"><summary>מתי אופטימיזציה בייסיאנית עדיפה על סריקה אקראית?</summary><p>כשכל קריאה לפונקציה יקרה (זמן/כסף) - היא מוצאת תוצאה טובה בעשרות קריאות במקום אלפים.</p></details>
+<details class="fold"><summary>מתי אופטימיזציה בייסיאנית עדיפה על סריקה אקראית?</summary><p>כשכל קריאה לפונקציה יקרה בזמן או בכסף: היא מוצאת תוצאה טובה בעשרות קריאות במקום אלפים.</p></details>
 <details class="fold"><summary>מה ההבדל בין init_points ל-n_iter?</summary><p>init_points - נקודות אקראיות לזריעה ראשונית. n_iter - איטרציות מונחות GP. אחרי שיש היסטוריה, init_points=0 מספיק.</p></details>
-<details class="fold"><summary>מה עושה probe?</summary><p>מכניס נקודת בדיקה יזומה לתור - שימושי כשיש ידע מוקדם היכן כדאי לחפש.</p></details>
+<details class="fold"><summary>מה עושה probe?</summary><p>מכניס נקודת בדיקה יזומה לתור, שימושי כשיש ידע מוקדם היכן כדאי לחפש.</p></details>
 <nav class="lnav">
 <a class="btn" href="lesson-16.html">← שיעור 16</a>
 <a class="btn" href="index.html">כל השיעורים</a>
