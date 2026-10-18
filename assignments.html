@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>משימות הקורס</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>משימות הקורס</h1>
+<p class="fact">3 משימות</p>
+<p class="intro">שלוש משימות הגשה מהקורס, עם הפירוט וההכנה הנדרשת לכל אחת.</p><h2 class="grouplabel">משימה 1: יסודות PyMC</h2>
+<p class="src">מבוסס על: שיעורים 1-3</p>
+<p>בניית מודלים ראשונים ב-PyMC: priors, נראות, דגימה, וקריאת פוסטריור.</p>
+<ol class="steps"><li>בונים מודל בטא-בינומי כמו בשיעור 1, עם נתונים משלכם או מהקורס.</li><li>משנים את ה-prior ובודקים איך הפוסטריור מגיב.</li><li>מחלצים דגימות ומחשבים ממוצע, HDI, והסתברות לשאלה קונקרטית.</li></ol><h2 class="grouplabel">משימה 2: מודלים היררכיים</h2>
+<p class="src">מבוסס על: שיעור 10</p>
+<p>יישום מודל היררכי על נתוני זמני תגובה: unpooled מול partial pooling.</p>
+<ol class="steps"><li>מריצים מודל נפרד לכל אדם (unpooled) ומודל היררכי (partial pooling).</li><li>משווים את הפוסטריורים של μ בין שני המודלים.</li><li>מדגימים את אפקט ה-shrinkage ומסבירים אותו במילים.</li></ol><h2 class="grouplabel">משימה 3: תהליכים גאוסיאניים</h2>
+<p class="src">מבוסס על: שיעורים 12-16</p>
+<p>בניית מודל GP מלא ב-PyMC על נתונים אמיתיים, כולל בחירת קרנל ותחזית.</p>
+<ol class="steps"><li>בוחרים קרנל מוצדק לנתונים (Matern 3/2 / 5/2 / ExpQuad).</li><li>שמים priors על פרמטרי הקרנל ומתאימים עם marginal_likelihood.</li><li>מייצרים תחזיות עם conditional ועונים על שאלת הסתברות מהתחזית.</li></ol><nav class="lnav"><span></span><a class="btn" href="index.html">כל השיעורים</a><span></span></nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

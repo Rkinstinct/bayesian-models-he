@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 3: מודל נקודת שינוי, חלק 2: פרשת "החומר הדביק"</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 3: מודל נקודת שינוי, חלק 2: פרשת "החומר הדביק"</h1>
+<p class="fact">יסודות</p>
+<p class="intro">ארבעת הרכיבים של כל מודל ב-PyMC, NUTS, ונתוני הבייסבול האמיתיים של 2021</p>
+<p class="src">מבוסס על notebook 3 (switching_point_part2_baseball) והרצאה 3</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להכיר את ארבעת הרכיבים של כל מודל ב-PyMC</li><li>להבחין בין משתנה סטוכסטי לדטרמיניסטי - ולהבין שגם דטרמיניסטי הוא מקרי</li><li>להבין מה זה NUTS ולמה הוא ברירת המחדל</li><li>להרכיב מודל נקודת שינוי על נתונים רציפים (נורמלית במקום פואסון)</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הסיפור: הזפת ששינתה את הבייסבול</h3>
+<p>בעונת 2021 התפוצצה בליגת ה-MLB פרשיית "החומר הדביק": מגישים מרחו זפת ותערובות על הכדור כדי להגדיל את קצב הסיבוב (spin rate) - מה שהקשה על החובטים. באמצע העונה הליגה הודיעה על אכיפה אגרסיבית. השאלה: האם אפשר לזהות בנתונים את הרגע שבו האכיפה נכנסה לתוקף? בידינו 7,791 מדידות של קצב סיבוב לאורך 182 ימי משחק.</p>
+<h3 class="lh">ארבעה רכיבים לכל מודל ב-PyMC</h3>
+<ul class="lb"><li>Priors - התפלגויות קודמות לכל פרמטר לא ידוע: pm.Normal, pm.Uniform וכו'.</li><li>Likelihood - פונקציית הנראות, שמחברת את הנתונים למודל דרך observed=.</li><li>Deterministic (לא חובה) - פונקציה שמחברת משתנים סטוכסטיים, כמו pm.math.switch.</li><li>Sampling - שיטת הדגימה מהפוסטריור: pm.sample.</li></ul>
+<h3 class="lh">סטוכסטי מול דטרמיניסטי</h3>
+<p>משתנה סטוכסטי מאופיין בהתפלגות - גם אם נדע את ה"הורים" שלו, הערך עדיין לא ודאי (μ, τ, σ). משתנה דטרמיניסטי נקבע לגמרי מההורים שלו - אבל שימו לב: הוא עדיין מקרי, כי ההורים מקריים! ההסתברות הבייסיאנית היא אפיסטמית: היא מייצגת את הידע ואי-הוודאות שלנו, לא בהכרח תהליך פיזיקלי מקרי.</p>
+<h3 class="lh">המודל: נקודת שינוי בממוצע</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">ה-priors והמשתנה הדטרמיניסטי</span><button type="button" class="copy" data-code="with pm.Model() as spin_rate_model:
+    # שני ממוצעים: לפני ואחרי (shape=2)
+    mu = pm.Normal('mu', mu=2500, sigma=100, shape=2)
+    # נקודת שינוי - הפעם רציפה על כל ימי העונה
+    tau = pm.Uniform('tau', lower=day_ind.min(), upper=day_ind.max())
+
+with spin_rate_model:
+    sigma = pm.HalfNormal(&quot;sigma&quot;, 100.)
+    # לכל תצפית: הממוצע של היום שבו נזרק הכדור
+    r = pm.Deterministic('r',
+        pm.math.switch(tau &gt;= day_ind, mu[0], mu[1]))">העתק</button></div><pre><code>with pm.Model() as spin_rate_model:
+    # שני ממוצעים: לפני ואחרי (shape=2)
+    mu = pm.Normal('mu', mu=2500, sigma=100, shape=2)
+    # נקודת שינוי - הפעם רציפה על כל ימי העונה
+    tau = pm.Uniform('tau', lower=day_ind.min(), upper=day_ind.max())
+
+with spin_rate_model:
+    sigma = pm.HalfNormal("sigma", 100.)
+    # לכל תצפית: הממוצע של היום שבו נזרק הכדור
+    r = pm.Deterministic('r',
+        pm.math.switch(tau &gt;= day_ind, mu[0], mu[1]))</code></pre></figure>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">חיבור הנתונים ודגימה</span><button type="button" class="copy" data-code="with spin_rate_model:
+    spin_rate_like = pm.Normal('spin_rate_like',
+        mu=r, sigma=sigma, observed=spin_rate)
+
+with spin_rate_model:
+    trace = pm.sample(1500, chains=2)
+
+import arviz as az
+az.plot_posterior(trace, var_names=[&quot;mu&quot;, &quot;tau&quot;])">העתק</button></div><pre><code>with spin_rate_model:
+    spin_rate_like = pm.Normal('spin_rate_like',
+        mu=r, sigma=sigma, observed=spin_rate)
+
+with spin_rate_model:
+    trace = pm.sample(1500, chains=2)
+
+import arviz as az
+az.plot_posterior(trace, var_names=["mu", "tau"])</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>μ₁ ≈ 2,539 סל"ד (לפני), μ₂ ≈ 2,442 (אחרי) - ירידה של כ-97 סל"ד, ומרווחי ה-HDI לא חופפים: ראיה חזקה לשינוי אמיתי. הפוסטריור של τ מתמקד סביב 8 ביוני 2021 - בדיוק מועד שינוי הכללים.</div>
+<h3 class="lh">טיפים שימושיים מהשיעור</h3>
+<ul class="lb"><li>בלוק with pm.Model() מתנהג כמו מכשיר הקלטה: כל משתנה שמוגדר בתוכו נוסף למודל. אפשר לפתוח את אותו מודל שוב עם with נוסף ולהוסיף משתנים.</li><li>shape=2 יוצר "אצווה" של שני משתנים בבת אחת (μ₁ ו-μ₂).</li><li>σ חייב להיות חיובי, ולכן PyMC דוגם פנימית את log(σ) - מרחב בלי הגבלות - ומחזיר כל דגימה למרחב המקורי.</li><li>משתנה דטרמיניסטי בלי pm.Deterministic לא יישמר ב-trace; עם שם - כן, ונוח לנתח אותו.</li></ul>
+<h3 class="lh">מה זה NUTS ולמה לא Metropolis?</h3>
+<p>בשיעור הקודם השתמשנו ב-Metropolis, אלגוריתם MCMC קלאסי. PyMC בוחר אוטומטית ב-NUTS - דוגם מתקדם שמנצל את הגרדיאנט (הנגזרת) של הנראות כדי "להחליק" בחכמה על פני הפוסטריור. התוצאה: התכנסות מהירה בהרבה, במיוחד במודלים גדולים ורציפים. בשיעור 9 נבין איך אלגוריתמים כאלה עובדים מבפנים.</p>
+<h3 class="lh">מה השתנה לעומת שיעור 2</h3>
+<ul class="lb"><li>נתונים: ספירות יומיות ← מדידות רציפות (סל"ד).</li><li>נראות: Poisson(λ) ← Normal(μ, σ).</li><li>נקודת השינוי: DiscreteUniform ← Uniform רציף.</li><li>דוגם: Metropolis ← NUTS (ברירת המחדל).</li><li>כיוון השינוי: עלייה ← ירידה.</li></ul>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>במקום switch, נסו לבנות את r עם לולאת list comprehension פשוטה על day_ind. למה הדרך של switch (וקטוריזציה) עדיפה?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>switch פועל על כל הווקטור בבת אחת ברמת הספרייה המשולבת (PyTensor), ולכן מהיר בהרבה ונשאר חלק מהגרף החישובי שהדוגם צריך. לולאת פייתון הייתה איטית ושוברת את הגרף.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מהם ארבעת הרכיבים של מודל ב-PyMC?</summary><p>Priors, נראות (Likelihood עם observed), משתנה דטרמיניסטי (לא חובה) ושיטת דגימה.</p></details>
+<details class="fold"><summary>האם משתנה דטרמיניסטי הוא קבוע?</summary><p>לא. הוא נקבע לגמרי מההורים שלו, אבל ההורים מקריים - ולכן גם הוא מקרי.</p></details>
+<details class="fold"><summary>איך מסיקים שהאכיפה באמת שינתה את המשחק?</summary><p>מרווחי ה-HDI של μ₁ ו-μ₂ לא חופפים, והפוסטריור של τ מתמקד סביב מועד שינוי הכללים (8 ביוני).</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-2.html">← שיעור 2</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-4.html">שיעור 4 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

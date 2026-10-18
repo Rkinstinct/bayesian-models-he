@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 4: בדיקת המודל והסקה חסינה</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 4: בדיקת המודל והסקה חסינה</h1>
+<p class="fact">יסודות</p>
+<p class="intro">מודל גאוסיאני, בדיקות פוסטריור-פרדיקטיביות, והתפלגות t של סטודנט</p>
+<p class="src">מבוסס על notebook 4 (checking_posterior) והרצאה 4</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>לבנות מודל גאוסיאני: prior גם לממוצע וגם לסטיית התקן</li><li>לבצע בדיקת פוסטריור-פרדיקטיבית: לדמות נתונים מהמודל ולהשוות לאמיתיים</li><li>להכיר את התפלגות t ואת פרמטר הנורמליות ν</li><li>להבין מהי הסקה חסינה (robust) ולמה לא מוחקים ערכים חריגים</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הנתונים: 48 מדידות ושתי תקלות</h3>
+<p>יש לנו 48 מדידות של תהודה מגנטית גרעינית (NMR). הצורה נראית גאוסיאנית, אבל שתי מדידות - 63.43 ו-68.58 - רחוקות מאוד מהשאר. איך בונים מודל שלא יתעוות בגללן?</p>
+<h3 class="lh">המודל הגאוסיאני הבסיסי</h3>
+<p>מתעלמים לרגע מהחריגים. גם μ וגם σ לא ידועים, ולכן לשניהם צריך prior. כשאין ידע מוקדם, בוחרים prior רחב מספיק כדי שהנתונים - ולא ה-prior - יקבעו את התוצאה: Uniform(40, 75) ל-μ (טווח שמכסה בנדיבות את המדידות) ו-HalfNormal(10) ל-σ (חיובית, רחבה).</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מודל גאוסיאני</span><button type="button" class="copy" data-code="import pymc as pm
+
+with pm.Model() as model_g:
+    μ = pm.Uniform('μ', lower=40, upper=70)
+    σ = pm.HalfNormal('σ', sigma=10)
+    y = pm.Normal('y', mu=μ, sigma=σ, observed=data)
+    idata_g = pm.sample(1000)">העתק</button></div><pre><code>import pymc as pm
+
+with pm.Model() as model_g:
+    μ = pm.Uniform('μ', lower=40, upper=70)
+    σ = pm.HalfNormal('σ', sigma=10)
+    y = pm.Normal('y', mu=μ, sigma=σ, observed=data)
+    idata_g = pm.sample(1000)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>μ ≈ 53.48 (HDI 94%: 52.49-54.46), σ ≈ 3.55 (HDI: 2.85-4.26). מדדי ההתכנסות (r_hat ו-ESS) תקינים.</div>
+<h3 class="lh">בדיקת פוסטריור-פרדיקטיבית: האם המודל מדמה את המציאות?</h3>
+<p>הרעיון פשוט ועמוק: דוגמים פרמטרים מהפוסטריור, מדמים איתם נתונים חדשים באותו גודל של הנתונים המקוריים, ובודקים אם הנתונים המדומים נראים כמו האמיתיים. אם לא - המודל מפספס משהו.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">דגימת נתונים מדומים והשוואה</span><button type="button" class="copy" data-code="with model_g:
+    pm.sample_posterior_predictive(idata_g, extend_inferencedata=True)
+
+az.plot_ppc(idata_g, num_pp_samples=100)">העתק</button></div><pre><code>with model_g:
+    pm.sample_posterior_predictive(idata_g, extend_inferencedata=True)
+
+az.plot_ppc(idata_g, num_pp_samples=100)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>הקווים המדומים (100 מדגמים) רחבים מדי ומוסטים ימינה ביחס לקו הכהה של הנתונים האמיתיים. למה? שני הערכים החריגים מושכים את μ ומנפחים את σ. המודל הנורמלי רגיש מדי לחריגים.</div>
+<h3 class="lh">התפלגות t של סטודנט: זנבות שסופגים הכל</h3>
+<p>ל-t של סטודנט יש פרמטר שלישי, ν (נו), "פרמטר הנורמליות". כש-ν קטן (קרוב ל-1) הזנבות כבדים מאוד וערכים קיצוניים סבירים; כש-ν גדול (30 ומעלה) ההתפלגות כמעט נורמלית. במקום להחליט מראש, נותנים לנתונים להחליט: prior מעריכי עם ממוצע 30 על ν - רוב המסה קרוב לנורמלית, אבל ערכים קטנים אפשריים אם הנתונים דורשים.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">המודל החסין</span><button type="button" class="copy" data-code="with pm.Model() as model_t:
+    μ = pm.Uniform('μ', 40, 75)
+    σ = pm.HalfNormal('σ', sigma=10)
+    ν = pm.Exponential('ν', 1/30)
+    y = pm.StudentT('y', mu=μ, sigma=σ, nu=ν, observed=data)
+    idata_t = pm.sample(1000)">העתק</button></div><pre><code>with pm.Model() as model_t:
+    μ = pm.Uniform('μ', 40, 75)
+    σ = pm.HalfNormal('σ', sigma=10)
+    ν = pm.Exponential('ν', 1/30)
+    y = pm.StudentT('y', mu=μ, sigma=σ, nu=ν, observed=data)
+    idata_t = pm.sample(1000)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>השוואה מול המודל הנורמלי: μ ירד מ-53.48 ל-53.03 (כבר לא נמשך לחריגים), σ צנח מ-3.55 ל-2.18 (הזנבות "סופגים" את החריגים), ו-ν ≈ 4.5 - הנתונים דרשו זנבות כבדים.</div>
+<p class="key">הסקה חסינה: לא מוחקים ערכים חריגים - בוחרים נראות שמסוגלת להסביר אותם.</p>
+<p>בבדיקה הפוסטריור-פרדיקטיבית של המודל החסין, המדגמים המדומים מרוכזים סביב רוב הנתונים, הרוחב והמיקום תואמים, והחריגים מוסברים על ידי הזנבות בלי לעוות את המרכז. המודל טוב בהרבה - בלי לזרוק אף תצפית.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>הריצו את שני המודלים (נורמלי ו-t) על אותם הנתונים אחרי שהסרתם ידנית את שני החריגים. מה קרה ל-σ במודל הנורמלי? ומה קרה ל-ν במודל ה-t?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>במודל הנורמלי σ מצטמצם משמעותית (בערך לרמה של ה-t החסין) כי אין יותר חריגים שמנפחים אותו. במודל ה-t הערך של ν עולה - הנתונים כבר לא דורשים זנבות כבדים, וההתפלגות חוזרת להיות כמעט נורמלית. שני המודלים מתכנסים לאותה תשובה, אבל המודל החסין עשה את זה לבד, בלי התערבות ידנית.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה עושה בדיקה פוסטריור-פרדיקטיבית?</summary><p>מדמה נתונים מהפוסטריור ומשווה אותם לנתונים האמיתיים. אם הם לא דומים - המודל מפספס משהו.</p></details>
+<details class="fold"><summary>מה שולט בכובד הזנבות של t?</summary><p>פרמטר הנורמליות ν: קטן = זנבות כבדים, גדול (30+) = כמעט נורמלית.</p></details>
+<details class="fold"><summary>מה קרה ל-σ כשעברנו מנורמלית ל-t, ולמה?</summary><p>צנח מ-3.55 ל-2.18. הזנבות הכבדים של t מסבירים את החריגים, ולכן σ כבר לא צריך "להתנפח" כדי לכסות אותם.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-3.html">← שיעור 3</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-5.html">שיעור 5 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

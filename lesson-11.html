@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 11: התכנסות ובדיקת מודל: מתי אפשר לסמוך על הדגימה?</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 11: התכנסות ובדיקת מודל: מתי אפשר לסמוך על הדגימה?</h1>
+<p class="fact">שיטות ליבה</p>
+<p class="intro">Trace plots, R-hat, autocorrelation וגודל מדגם אפקטיבי - על דגם גדילת חולדות</p>
+<p class="src">מבוסס על notebook 11 (Model_Checking)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין למה דגימת MCMC דורשת בדיקת התכנסות</li><li>לקרוא trace plot ולזהות דגימה בריאה מול בעייתית</li><li>להכיר את R-hat (Gelman-Rubin) ואת גודל המדגם האפקטיבי (ESS)</li><li>להבין autocorrelation בשרשרת ולמה thinning זה בזבוז</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הדגימה התכנסה?</h3>
+<p>התיאוריה מבטיחה ש-MCMC מתכנס להתפלגות הנכונה - אבל רק "כשמספר האיטרציות שואף לאינסוף". במציאות עצרנו אחרי 5,000 דגימות. איך יודעים שלא עצרנו מוקדם מדי? אין סף אוניברסלי, ולכן בודקים התכנסות בכל פעם מחדש. וזכרו: גם מודל שהתכנס לא מובטח להיות מודל טוב (זו בדיקת ההתאמה משיעור 4).</p>
+<h3 class="lh">הדוגמה: גדילת חולדות</h3>
+<p>30 חולדות צעירות נשקלו מדי שבוע במשך 5 שבועות. לכל חולדה מתאימים קו גדילה משלה (אלפא וביתא לכל חולדה) - מודל היררכי כמו בשיעור 10: הפרמטרים של החולדות שואבים מהתפלגויות משותפות. אחרי הדגימה מתחילה הבדיקה.</p>
+<h3 class="lh">בדיקה לא פורמלית: trace plot</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">ציור השרשראות</span><button type="button" class="copy" data-code="import arviz as az
+az.plot_trace(rat_trace, var_names=['m_a', 'm_b'])">העתק</button></div><pre><code>import arviz as az
+az.plot_trace(rat_trace, var_names=['m_a', 'm_b'])</code></pre></figure>
+<p>שרשרת בריאה נראית כמו "ג'יבריש" אחיד - רעש לבן סביב ערך יציב, בלי מגמות ובלי תקיעות. לעומת זאת, אם נתחיל את השרשרת מנקודת פתיחה גרועה (למשל m_a=1000), נראה אותה מטפסת לאט לאזור הנכון - סימן שהיא עוד לא התכנסה. בדיקה נוספת: להריץ כמה שרשראות מנקודות התחלה שונות ולראות שהן מתכנסות לאותו מקום (ergodicity). שתי הבדיקות האלה היוריסטיות בלבד - יש תופעה בשם metastability שיכולה לרמות אותן: שרשרת נראית יציבה לאורך זמן ואז פתאום קופצת לאזור אחר.</p>
+<h3 class="lh">הבדיקה הפורמלית: R-hat</h3>
+<p>מדד ג'למן-רובין משווה את השונות בתוך כל שרשרת לשונות בין השרשראות. אם כל השרשראות התכנסו לאותו מקום, היחס יהיה קרוב ל-1. כלל אצבע: R-hat עד 1.01 נחשב תקין; מעל זה - מדובר בשרשראות שלא הסתדרו, וצריך יותר דגימות או בדיקת המודל.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">סיכום עם מדדי התכנסות</span><button type="button" class="copy" data-code="az.summary(rat_trace)   # עמודות r_hat ו-ess לכל פרמטר">העתק</button></div><pre><code>az.summary(rat_trace)   # עמודות r_hat ו-ess לכל פרמטר</code></pre></figure>
+<h3 class="lh">Autocorrelation: הדגימות לא עצמאיות</h3>
+<p>בגלל שכל דגימה מוצעת בקרבת הקודמת, דגימות סמוכות דומות זו לזו. זה לא אסון - אבל זה אומר ש-5,000 דגימות מ-MCMC שוות פחות מ-5,000 דגימות עצמאיות. כמה פחות? זה בדיוק ה-ESS.</p>
+<h3 class="lh">ESS: גודל המדגם האפקטיבי</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">בדיקת ה-ESS</span><button type="button" class="copy" data-code="ess = az.ess(rat_trace)
+az.plot_forest(rat_trace, var_names=['s_a', 's_b', 'σ'], ess=True)">העתק</button></div><pre><code>ess = az.ess(rat_trace)
+az.plot_forest(rat_trace, var_names=['s_a', 's_b', 'σ'], ess=True)</code></pre></figure>
+<p>ESS מעריך כמה דגימות עצמאיות "שקולות" יש בשרשרת. אם ESS נמוך ביחס למספר הדגימות - צריך לדגום עוד. מפתחות לזכור: ESS נמוך ו-R-hat גבוה מצביעים יחד על mixing גרוע. ודגמים נפוץ לשגיאה: לא לבצע thinning (לקחת כל דגימה 20) - זה זורק מידע בלי לקנות כלום; פשוט דוגמים יותר.</p>
+<p class="key">הכלה מעשית לכל ריצה: az.summary - בודקים ש-r_hat קרוב ל-1 וש-ess גבוה, ואז מעיפים מבט ב-plot_trace.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>הריצו את מודל החולדות עם step=pm.Metropolis() ונקודת התחלה קיצונית (m_a=1000, m_b=-10). מה רואים ב-plot_trace לעומת הריצה הרגילה? ומה קורה ל-R-hat?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>השרשראות מטפסות לאט מאזור ההתחלה הקיצוני - עקומות עם מגמה ברורה במקום רעש אחיד. R-hat עולה מעל 1.01 כי השרשראות עדיין לא יצבעו באותו אזור. המסקנה: נקודת פתיחה גרועה + דוגם חלש = צריך הרבה יותר tune ודגימות.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה R-hat מודד ומהו ערך תקין?</summary><p>את היחס בין השונות בין-שרשרתית לבתוך-שרשרתית. קרוב ל-1 (עד 1.01) = השרשראות התכנסו לאותה התפלגות.</p></details>
+<details class="fold"><summary>למה 5,000 דגימות MCMC שוות פחות מ-5,000 דגימות עצמאיות?</summary><p>בגלל ה-autocorrelation: כל דגימה תלויה בקודמת, ולכן כל דגימה מוסיפה פחות מידע חדש. ה-ESS מודד את המספר האפקטיבי.</p></details>
+<details class="fold"><summary>למה לא כדאי לעשות thinning?</summary><p>כי הוא זורק רוב הדגימות בלי תועלת - כדי להגיע לאותו ESS צריך פשוט לדגום יותר, ואז עדיף לשמור את הכל.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-10.html">← שיעור 10</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-12.html">שיעור 12 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

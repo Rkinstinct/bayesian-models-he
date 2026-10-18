@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 5: השוואת קבוצות: טיפים וגודל האפקט</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 5: השוואת קבוצות: טיפים וגודל האפקט</h1>
+<p class="fact">יסודות</p>
+<p class="intro">מודל אחד לארבע קבוצות עם coords ו-dims, נראות גמא, ו-d של כהן כהתפלגות</p>
+<p class="src">מבוסס על notebook 5 (compering_groups) והרצאה 5</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>לקודד קבוצות לאינדקס ולבנות מודל אחד לכולן (בלי לולאות)</li><li>להשתמש ב-coords וב-dims כדי לתייג פרמטרים בשמות</li><li>להבין מתי בוחרים נראות גמא</li><li>לחשב גודל אפקט של כהן כהתפלגות פוסטריורית מלאה</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">השאלה: באיזה יום משאירים הכי הרבה טיפ?</h3>
+<p>מאגר ה-tips המפורסם: 244 ארוחות במסעדה, מחולקות לימים חמישי (62), שישי (19), שבת (87) וראשון (76). הטיפים תמיד חיוביים עם זנב ימני ארוך. השאלה: האם גובה הטיפ שונה בין ימי השבוע?</p>
+<h3 class="lh">קידוד הקבוצות: מיום לאינדקס</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">כל תצפית מקבלת את מספר היום שלה</span><button type="button" class="copy" data-code="import numpy as np
+import pandas as pd
+
+categories = np.array(['Thur', 'Fri', 'Sat', 'Sun'])
+tip = tips['tip'].values
+idx = pd.Categorical(tips['day'], categories=categories).codes
+
+# idx לכל תצפית: מספר היום שלה (0 עד 3)
+# μ[idx] לכל תצפית: הממוצע של היום שלה">העתק</button></div><pre><code>import numpy as np
+import pandas as pd
+
+categories = np.array(['Thur', 'Fri', 'Sat', 'Sun'])
+tip = tips['tip'].values
+idx = pd.Categorical(tips['day'], categories=categories).codes
+
+# idx לכל תצפית: מספר היום שלה (0 עד 3)
+# μ[idx] לכל תצפית: הממוצע של היום שלה</code></pre></figure>
+<p>הטריק הזה - μ[idx] - הוא אחד החשובים בקורס: במקום ארבעה מודלים נפרדים או לולאות, מודל אחד מכיל את כל ארבע הקבוצות. כל תצפית פשוט "שולפת" את הפרמטר של היום שלה.</p>
+<h3 class="lh">למה גמא?</h3>
+<p>הטיפים חיוביים וא-סימטריים עם זנב ימני - בדיוק הצורה של התפלגות גמא. בונוס נחמד ב-PyMC: אפשר להגדיר Gamma ישירות דרך הממוצע וסטיית התקן (mu ו-sigma), בלי להסתבך בפרמטרי צורה.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">המודל המלא עם coords ו-dims</span><button type="button" class="copy" data-code="coords = {&quot;days&quot;: categories, &quot;days_flat&quot;: categories[idx]}
+
+with pm.Model(coords=coords) as comparing_groups:
+    μ = pm.HalfNormal('μ', sigma=5, dims=&quot;days&quot;)
+    σ = pm.HalfNormal('σ', sigma=1, dims=&quot;days&quot;)
+
+    y = pm.Gamma('y', mu=μ[idx], sigma=σ[idx],
+                 observed=tip, dims=&quot;days_flat&quot;)
+
+    idata_cg = pm.sample()">העתק</button></div><pre><code>coords = {"days": categories, "days_flat": categories[idx]}
+
+with pm.Model(coords=coords) as comparing_groups:
+    μ = pm.HalfNormal('μ', sigma=5, dims="days")
+    σ = pm.HalfNormal('σ', sigma=1, dims="days")
+
+    y = pm.Gamma('y', mu=μ[idx], sigma=σ[idx],
+                 observed=tip, dims="days_flat")
+
+    idata_cg = pm.sample()</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>הפוסטריור של μ מקבל צורה (2, 1000, 4) - שרשראות, דגימות, ימים - וכל יום מתויג בשמו. ממוצעי הפוסטריור: חמישי 2.78, שישי 2.77, שבת 3.00, ראשון 3.26. לשישי המרווח הרחב ביותר - רק 19 ארוחות.</div>
+<p>שימו לב איך coords ו-dims עובדים: coords מגדיר שמות לממדים, ו-dims="days" אומר ש-μ הוא וקטור באורך 4 עם שם לכל יום. התוצאה: טבלאות וגרפים מתויגים בשמות הקבוצות במקום מספרים.</p>
+<h3 class="lh">למה מספיק גדול ההבדל? גודל האפקט של כהן</h3>
+<p>הפרש של דולר אחד הוא גדול אם הפיזור קטן, וזניח אם הפיזור גדול. גודל האפקט d מודד את ההפרש ביחידות של סטיית תקן: ההפרש בין הממוצעים מחולק בסטיית התקן המאוחדת (pooled). כללי אצבע לפירוש: מתחת ל-0.2 זניח, 0.2-0.5 קטן, 0.5-0.8 בינוני, 0.8 ומעלה גדול. אלו כללי אצבע, לא חוקי טבע.</p>
+<h3 class="lh">d בייסיאני: התפלגות במקום מספר בודד</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">התפלגות ההפרש בין שני ימים</span><button type="button" class="copy" data-code="post = az.extract(idata_cg)
+
+for i, j in comparisons:
+    diff = post['μ'].sel(days=i) - post['μ'].sel(days=j)
+    d = (diff / np.sqrt((post['σ'].sel(days=i)**2 +
+                         post['σ'].sel(days=j)**2) / 2)).mean()
+    az.plot_posterior(diff.values, ref_val=0)">העתק</button></div><pre><code>post = az.extract(idata_cg)
+
+for i, j in comparisons:
+    diff = post['μ'].sel(days=i) - post['μ'].sel(days=j)
+    d = (diff / np.sqrt((post['σ'].sel(days=i)**2 +
+                         post['σ'].sel(days=j)**2) / 2)).mean()
+    az.plot_posterior(diff.values, ref_val=0)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>שש השוואות: ראשון מול חמישי ושישי נותן אפקט קטן (|d| בסביבות 0.4); כל שאר ההשוואות זניחות (0.01-0.19). יש כ-99% הסתברות שהטיפ בראשון גבוה מבחמישי.</div>
+<p class="key">הגישה הבייסיאנית נותנת התפלגות שלמה של ההבדל - לא רק "מובהק / לא מובהק". אפשר לומר: ההבדל כמעט ודאי קיים, אבל הוא מתון ביחס לפיזור הטיפים.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>חשבו ישירות מהפוסטריור: מה ההסתברות שהטיפ הממוצע ביום ראשון גבוה מהטיפ הממוצע בשבת?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>np.mean(post["μ"].sel(days="Sun").values &gt; post["μ"].sel(days="Sat").values) - פשוט סופרים באחוז מהדגימות ממוצע ראשון גדול ממוצע שבת. התוצאה תהיה גבוהה אבל פחות מ-99% (המרווחים חופפים יותר).</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה היתרון של μ[idx] על פני ארבעה מודלים נפרדים?</summary><p>מודל אחד מכיל את כל הקבוצות: כל תצפית שולפת את הפרמטר של הקבוצה שלה, בלי לולאות, והתוצאות מסודרות באותו אובייקט.</p></details>
+<details class="fold"><summary>מתי נראות גמא מתאימה?</summary><p>לנתונים חיוביים וא-סימטריים עם זנב ימני - כמו טיפים, זמני המתנה ומחירים.</p></details>
+<details class="fold"><summary>מה מודד d של כהן ומה ההבדל בגישה הבייסיאנית?</summary><p>את ההפרש ביחידות של סטיית תקן. בגישה הבייסיאנית מקבלים התפלגות שלמה של d עם אי-הוודאות, לא מספר בודד.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-4.html">← שיעור 4</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-6.html">שיעור 6 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 6: רגרסיה בייסיאנית</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 6: רגרסיה בייסיאנית</h1>
+<p class="fact">שיטות ליבה</p>
+<p class="intro">קו רגרסיה עם אי-ודאות: priors למקדמים, prior predictive, וקריאת טבלת הסיכום</p>
+<p class="src">מבוסס על notebook 6 (Bayesian_regression)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין איך רגרסיה לינארית הופכת למודל בייסיאני</li><li>לבחור priors למקדמים ולרעש</li><li>להריץ prior predictive check לפני שמכניסים נתונים</li><li>לקרוא נכון את טבלת pm.summary: ממוצע, HDI, ESS ו-r_hat</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">מה רגרסיה בייסיאנית נותנת שרגרסיה רגילה לא</h3>
+<p>ברגרסיה לינארית רגילה מקבלים מספר אחד לכל מקדם: "השיפוע הוא 2.5". ברגרסיה בייסיאנית מקבלים התפלגות שלמה לכל מקדם: לא רק מה הערך הסביר, אלא גם כמה אנחנו בטוחים בו. במקום "נקודה אחת ותקו" - תמונה מלאה של האמונה.</p>
+<h3 class="lh">הדוגמה: שני משתנים מסבירים</h3>
+<p>מדמים נתונים עם שני משתנים מסבירים X1 ו-X2: Y = alpha + beta1*X1 + beta2*X2 + רעש. הערכים האמיתיים: alpha=1, beta=[1, 2.5], sigma=1. המטרה: לשחזר אותם מהנתונים בלבד - ולקבל גם את אי-הוודאות.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">המודל: priors + קשר לינארי + נראות</span><button type="button" class="copy" data-code="import pymc as pm
+
+with pm.Model() as basic_model:
+    # Priors לפרמטרים הלא ידועים
+    alpha = pm.Normal('alpha', mu=0, sigma=100)
+    beta = pm.Normal('beta', mu=0, sigma=100, shape=2)
+    sigma = pm.HalfNormal('sigma', sigma=100)
+
+    # הערך הצפוי של התוצאה
+    mu = pm.Deterministic(alpha + beta[0]*X1 + beta[1]*X2)
+
+    # בדיקת prior predictive לפני חיבור הנתונים
+    priors_samples = pm.sample_prior_predictive(samples=200, random_seed=35)
+
+    # הנראות - כאן הנתונים נכנסים
+    Y_obs = pm.Normal('Y_obs', mu=mu, sigma=sigma, observed=Y)
+
+    trace = pm.sample(5000)">העתק</button></div><pre><code>import pymc as pm
+
+with pm.Model() as basic_model:
+    # Priors לפרמטרים הלא ידועים
+    alpha = pm.Normal('alpha', mu=0, sigma=100)
+    beta = pm.Normal('beta', mu=0, sigma=100, shape=2)
+    sigma = pm.HalfNormal('sigma', sigma=100)
+
+    # הערך הצפוי של התוצאה
+    mu = pm.Deterministic(alpha + beta[0]*X1 + beta[1]*X2)
+
+    # בדיקת prior predictive לפני חיבור הנתונים
+    priors_samples = pm.sample_prior_predictive(samples=200, random_seed=35)
+
+    # הנראות - כאן הנתונים נכנסים
+    Y_obs = pm.Normal('Y_obs', mu=mu, sigma=sigma, observed=Y)
+
+    trace = pm.sample(5000)</code></pre></figure>
+<p>שלוש נקודות להבחין בהן: ה-priors רחבים (sigma=100) כי אין לנו ידע מוקדם; המקדם beta מוגדר כוקטור באורך 2 עם shape=2; ו-sigma הוא HalfNormal כי סטיית תקן חייבת להיות חיובית.</p>
+<h3 class="lh">prior predictive: לבדוק את המודל לפני הנתונים</h3>
+<p>pm.sample_prior_predictive מריץ את המודל "ריק" - רק עם ה-priors, בלי נתונים - ומדמה תצפיות. אם הסימולציה מייצרת ערכים מטורפים ביחס לידע המקצועי שלנו, סימן שהמודל (או ה-priors) בעייתיים. זו בדיקת שפיות זולה שחוסכת הרבה כאב בהמשך.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">קריאת התוצאות</span><button type="button" class="copy" data-code="pm.summary(trace).round(2)">העתק</button></div><pre><code>pm.summary(trace).round(2)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>alpha: ממוצע 0.91, HDI 94%: [0.72, 1.09]. beta[0]: 0.95 [0.78, 1.11]. beta[1]: 2.62 [1.65, 3.56]. sigma: 0.99 [0.86, 1.13]. כל הערכים האמיתיים (1, 1, 2.5, 1) נמצאים בתוך מרווחי ה-HDI - המודל שיחזר אותם בהצלחה. r_hat = 1.0 לכולם: הדגימה התכנסה.</div>
+<h3 class="lh">איך קוראים את טבלת הסיכום</h3>
+<ul class="lb"><li>mean ו-sd: מרכז הפוסטריור והפיזור שלו.</li><li>hdi_3% ו-hdi_97%: מרווח האמינות של 94%. אורך המרווח תלוי בהקשר - אין "גדול" או "קטן" אבסולוטי.</li><li>ess_bulk ו-ess_tail: גודל המדגם האפקטיבי - כמה דגימות "באמת עצמאיות" יש לנו (שיעור 11).</li><li>r_hat: מדד התכנסות. 1.0 מושלם; מעל 1.01 כדאי לבדוק (שיעור 11).</li></ul>
+<p class="key">רגרסיה בייסיאנית = רגרסיה לינארית + התפלגות אמונה על כל מקדם. אותו קו, אבל עם מד ביטחון מלא.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>הוסיפו למודל משתנה מסביר שלישי X3 שלא באמת משפיע על Y (בנויים אקראית). מה תראו בפוסטריור של המקדם שלו?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>הפוסטריור של beta[2] יתמקד סביב 0, וה-HDI יכיל את 0 - המודל "מגלה" שהמשתנה לא מנבא. זו הדרך הבייסיאנית לומר "אין ראיה לאפקט": ההתפלגות מרוכזת סביב אפס.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה מקבלים ברגרסיה בייסיאנית שלא מקבלים ברגרסיה רגילה?</summary><p>התפלגות שלמה לכל מקדם - לא רק אומדן נקודתי אלא גם את אי-הוודאות סביבו.</p></details>
+<details class="fold"><summary>מה בודק prior predictive?</summary><p>אם המודל עם ה-priors בלבד מייצר תצפיות סבירות - לפני שמכניסים נתונים בכלל.</p></details>
+<details class="fold"><summary>מה r_hat = 1.0 אומר?</summary><p>שהשרשראות השונות התכנסו לאותה התפלגות - אפשר לסמוך על הדגימה.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-5.html">← שיעור 5</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-7.html">שיעור 7 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

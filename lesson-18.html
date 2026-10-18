@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 18: ניצול מול חקר: פונקציות הרכישה</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 18: ניצול מול חקר: פונקציות הרכישה</h1>
+<p class="fact">אופטימיזציה ובנדיטים</p>
+<p class="intro">UCB, EI ו-PI - שלוש דרכים להחליט איפה לבדוק הבא, ומתי כל אחת מתאימה</p>
+<p class="src">מבוסס על notebook 18 (exploitation_vs_exploration)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין את הדילמה: לנצל מה שידוע או לחקור מה שלא</li><li>להכיר את שלוש פונקציות הרכישה: UCB, EI, PI</li><li>לשלוט באיזון עם kappa ו-xi</li><li>לבחור פונקציית רכישה לבעיה</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הדילמה שבלב כל חיפוש</h3>
+<p>נניח שאתם מחפשים את המסעדה הכי טובה בעיר. אחרי כמה ניסיונות יש מועמדת מובילה. האם לחזור אליה (ניצול - exploitation) או לנסות מקום חדש שלא ביקרתם בו (חקר - exploration)? באופטימיזציה בייסיאנית, ההחלטה הזו מתבצעת בכל איטרציה על ידי פונקציית הרכישה (acquisition function) - והיא מבוססת על הממוצע החזוי μ(x) ואי-הוודאות σ(x) שה-GP נותן.</p>
+<h3 class="lh">UCB: רף ביטחון עליון</h3>
+<div class="formula" dir="ltr">UCB(x) = μ(x) + κ · σ(x)</div>
+<p>בוחרים את הנקודה עם הצפי האופטימי ביותר: הממוצע פלוס בונוס אי-ודאות. κ שולט באיזון: κ קטן (0.1) - כמעט רק ניצול, הנקודות מתקהלות סביב השיא הידוע. κ גדול (10) - חקר נרחב, הנקודות מתפזרות על כל הטווח.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">UCB עם שני קצוות</span><button type="button" class="copy" data-code="from bayes_opt import BayesianOptimization, UtilityFunction
+
+# ניצול
+bo = BayesianOptimization(f=f, pbounds={&quot;x&quot;: (-2, 10)},
+                          verbose=0, random_state=987234)
+acq = UtilityFunction(kind=&quot;ucb&quot;, kappa=0.1, xi=0.0)
+
+# חקר
+acq_explore = UtilityFunction(kind=&quot;ucb&quot;, kappa=10, xi=0.0)">העתק</button></div><pre><code>from bayes_opt import BayesianOptimization, UtilityFunction
+
+# ניצול
+bo = BayesianOptimization(f=f, pbounds={"x": (-2, 10)},
+                          verbose=0, random_state=987234)
+acq = UtilityFunction(kind="ucb", kappa=0.1, xi=0.0)
+
+# חקר
+acq_explore = UtilityFunction(kind="ucb", kappa=10, xi=0.0)</code></pre></figure>
+<h3 class="lh">EI: שיפור צפוי</h3>
+<div class="formula" dir="ltr">EI(x) = E[max(f(x) - f(x*), 0)]</div>
+<p>שואלים: בכמה נשתפר בממוצע ביחס לנקודה הטובה ביותר f(x*) שכבר מצאנו? זו שאלה עדינה יותר מ-"מה הסיכוי לשיפור" כי היא מתחשבת גם בגודל השיפור. הפרמטר ξ (xi) מוסיף דרישת סף: xi=0 זה ניצול, xi=0.1 דוחף לחקר. EI נחשבת הבחירה המאוזנת לרוב הבעיות: רובסטית, נתמכת בכל הספריות, ברירת מחדל מוצדקת.</p>
+<h3 class="lh">PI: הסתברות שיפור</h3>
+<div class="formula" dir="ltr">PI(x) = P(f(x) &gt; f(x*) + ξ)</div>
+<p>הפשוטה מכולן: מה ההסתברות שנשתפר בכלל? היא אגרסיבית בניצול - מתעלמת מגודל השיפור ולכן עלולה להיתקע במקסימום מקומי. מתאימה כשהפונקציה זולה יחסית או כשצריך התקדמות מהירה.</p>
+<h3 class="lh">מה לבחור מתי</h3>
+<ul class="lb"><li>EI - ברירת המחדל המאוזנת: שקלול של סיכוי וגודל שיפור. טובה לפונקציות מתונות בעלות.</li><li>UCB - כשרוצים שליטה מפורשת ב-κ: פרויקט עם תקציב ניסויים קשיח ורצון לכוון חקר/ניצול ידנית.</li><li>PI - כשרוצים שיפורים מהירים ואגרסיביים; מוכנים לסיכון להיתקע במקומי.</li></ul>
+<p class="key">פונקציית הרכישה היא המדיניות: ה-GP מספק את המפה (צפי + אי-ודאות), והיא מחליטה לאן ללכת הבא.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>הפונקציה בדוגמה דו-שיאית (שיאים ב-2 וב-6). הריצו עם UCB kappa=0.1 ועם kappa=10. באיזו הרצה נמצאו שני השיאים? הסבירו.</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>עם kappa=10 - החקר הרחב מכסה את כל הטווח ומגלה גם את השיא השני. עם kappa=0.1 הנקודות מתקהלות סביב השיא הראשון שנמצא, והשיא השני עלול להתפספס. זו הסכנה הקלאסית של ניצול יתר: מקסימום מקומי.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה שני המרכיבים שפונקציית רכישה שוקלת?</summary><p>הממוצע החזוי μ(x) - ניצול, ואי-הוודאות σ(x) - חקר. כל פונקציה מאזנת ביניהם אחרת.</p></details>
+<details class="fold"><summary>מה ההבדל המהותי בין EI ל-PI?</summary><p>PI שואלת רק מה הסיכוי לשיפור; EI שוקלת גם את גודל השיפור הצפוי, ולכן מאוזנת יותר.</p></details>
+<details class="fold"><summary>מה κ גדול עושה ב-UCB?</summary><p>דוחף לחקר: הנקודות הנבדקות מתפזרות על פני כל הטווח במקום להתקהל סביב השיא הידוע.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-17.html">← שיעור 17</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-19.html">שיעור 19 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

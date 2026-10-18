@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 19: אופטימיזציה בייסיאנית: הסיור המתקדם</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 19: אופטימיזציה בייסיאנית: הסיור המתקדם</h1>
+<p class="fact">אופטימיזציה ובנדיטים</p>
+<p class="intro">פרדיגמת Suggest-Evaluate-Register, פרמטרים בדידים, כיוון ה-GP ו-Observers</p>
+<p class="src">מבוסס על notebook 19 (advanced_tour)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>לשלוט בלולאת האופטימיזציה ידנית: suggest, register</li><li>להתמודד עם פרמטרים בדידים (טריק ההמרה)</li><li>לכוון את ה-GP הפנימי: alpha וקרנל</li><li>להאזין לאירועי האופטימיזציה עם Observers</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">לפרק את maximize לחלקים</h3>
+<p>maximize הוא סתם עטיפה נוחה. בפנים הוא עושה שלושה דברים שאפשר לעשות לבד: suggest - האופטימייזר מציע את הנקודה הבאה; evaluate - אתם מריצים את הפונקציה איפה ומתי שבא לכם (אפילו במחשב אחר או בניסוי מעבדה); register - מחזירים לו את התוצאה. זה פותח אופטימיזציה מבוזרת, לוגים מותאמים, והפסקות באמצע.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">לולאה ידנית מלאה</span><button type="button" class="copy" data-code="from bayes_opt import BayesianOptimization, UtilityFunction
+
+optimizer = BayesianOptimization(
+    f=None,                       # שימו לב: בלי f!
+    pbounds={'x': (-2, 2), 'y': (-3, 3)},
+    verbose=2,
+    random_state=1,
+)
+utility = UtilityFunction(kind=&quot;ucb&quot;, kappa=2.5, xi=0.0)
+
+for _ in range(5):
+    next_point = optimizer.suggest(utility)          # 1. הצעה
+    target = black_box_function(**next_point)        # 2. הערכה - אצלכם
+    optimizer.register(params=next_point, target=target)  # 3. רישום">העתק</button></div><pre><code>from bayes_opt import BayesianOptimization, UtilityFunction
+
+optimizer = BayesianOptimization(
+    f=None,                       # שימו לב: בלי f!
+    pbounds={'x': (-2, 2), 'y': (-3, 3)},
+    verbose=2,
+    random_state=1,
+)
+utility = UtilityFunction(kind="ucb", kappa=2.5, xi=0.0)
+
+for _ in range(5):
+    next_point = optimizer.suggest(utility)          # 1. הצעה
+    target = black_box_function(**next_point)        # 2. הערכה - אצלכם
+    optimizer.register(params=next_point, target=target)  # 3. רישום</code></pre></figure>
+<p>שימו לב: f=None - האופטימייזר לא מפעיל את הפונקציה בכלל. וכל עוד אין נקודות, ההצעות אקראיות; ככל שנצברות תצפיות, הן נהיות חכמות.</p>
+<h3 class="lh">פרמטרים בדידים: אין פתרון אלגנטי, יש טריק</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">עטיפה עם המרה ל-int</span><button type="button" class="copy" data-code="def func_with_discrete_params(x, y, d):
+    assert type(d) == int
+    return -x**2 - (y - 1)**2 + 1 + d
+
+def function_to_be_optimized(x, y, w):
+    d = int(w)                       # המרה בדידה בתוך העטיפה
+    return func_with_discrete_params(x, y, d)
+
+optimizer = BayesianOptimization(
+    f=function_to_be_optimized,
+    pbounds={'x': (-10, 10), 'y': (-10, 10), 'w': (0, 5)},
+    verbose=2, random_state=1)
+optimizer.set_gp_params(alpha=1e-3)  # מרחיק נקודות &quot;כפולות&quot;">העתק</button></div><pre><code>def func_with_discrete_params(x, y, d):
+    assert type(d) == int
+    return -x**2 - (y - 1)**2 + 1 + d
+
+def function_to_be_optimized(x, y, w):
+    d = int(w)                       # המרה בדידה בתוך העטיפה
+    return func_with_discrete_params(x, y, d)
+
+optimizer = BayesianOptimization(
+    f=function_to_be_optimized,
+    pbounds={'x': (-10, 10), 'y': (-10, 10), 'w': (0, 5)},
+    verbose=2, random_state=1)
+optimizer.set_gp_params(alpha=1e-3)  # מרחיק נקודות "כפולות"</code></pre></figure>
+<p>ה-GP אוהב רציפות, ולכן מעבירים את הבדיד דרך פרמטר רציף w ומעגלים בפנים. חשוב להעלות את alpha (פרמטר הרעש של ה-GP): אחרת ערכי w שונים שממופים לאותו d נראים לו כמו מדידות סותרות של אותה נקודה.</p>
+<h3 class="lh">כיוון ה-GP הפנימי</h3>
+<ul class="lb"><li>set_gp_params מעביר פרמטרים ישירות ל-GP שמתחת.</li><li>alpha - כמה רעש ה-GP סובל. להעלות כשהמרחב "קופצני" או יש פרמטרים בדידים.</li><li>הקרנל ברירת המחדל הוא Matern 2.5. אפשר להחליף - אבל זה כבר התאמה ספציפית לבעיה.</li></ul>
+<h3 class="lh">Observers: להאזין למה שקורה</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">הרשמה לאירועים</span><button type="button" class="copy" data-code="from bayes_opt.event import DEFAULT_EVENTS, Events
+
+class BasicObserver:
+    def update(self, event, instance):
+        print(&quot;event:&quot;, event, &quot;| points so far:&quot;, len(instance.space))
+
+optimizer.subscribe(
+    event=Events.OPTIMIZATION_STEP,
+    subscriber=BasicObserver(),
+)
+
+# או callback חופשי:
+def my_callback(event, instance):
+    print(&quot;Go nuts here!&quot;)
+optimizer.subscribe(event=Events.OPTIMIZATION_START,
+                    subscriber=None, callback=my_callback)">העתק</button></div><pre><code>from bayes_opt.event import DEFAULT_EVENTS, Events
+
+class BasicObserver:
+    def update(self, event, instance):
+        print("event:", event, "| points so far:", len(instance.space))
+
+optimizer.subscribe(
+    event=Events.OPTIMIZATION_STEP,
+    subscriber=BasicObserver(),
+)
+
+# או callback חופשי:
+def my_callback(event, instance):
+    print("Go nuts here!")
+optimizer.subscribe(event=Events.OPTIMIZATION_START,
+                    subscriber=None, callback=my_callback)</code></pre></figure>
+<p class="key">כשצריך שליטה - פורקים את maximize. suggest/evaluate/register הם הלולאה האמיתית, וכל שאר הכלים (בדידים, כיוון GP, observers) תולים עליה.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>בנו לולאת suggest/register שבה מוערכות שתי נקודות במקביל (שני "עובדים") לפני הרישום. מה היתרון ומה הסיכון?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>יתרון: מקבילים ניסויים יקרים (חיסכון בזמן קיר). סיכון: שתי ההצעות נובעות מאותה היסטוריה, ולכן עלולות להיות כמעט זהות ולבזבז ניסוי. פתרונות קיימים (הצעות "אצווה" מגוונות) אבל דורשים טיפול מיוחד.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה מרכיבי לולאת האופטימיזציה הידנית?</summary><p>suggest (הצעת נקודה), הערכה מקומית של הפונקציה, ו-register (רישום התוצאה).</p></details>
+<details class="fold"><summary>איך מטפלים בפרמטר בדיד?</summary><p>מעבירים אותו כרציף ומעגלים בתוך עטיפה, ומעלים את alpha של ה-GP כדי לסבול את ה"כפילויות".</p></details>
+<details class="fold"><summary>למה f=None?</summary><p>כי האופטימייזר לא מפעיל את הפונקציה - אתם מריצים אותה בעצמכם (אולי במכונה אחרת) ורק מדווחים תוצאות.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-18.html">← שיעור 18</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-20.html">שיעור 20 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

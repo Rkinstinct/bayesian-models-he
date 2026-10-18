@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 9: איך עובדת הדגימה: Rejection ו-Metropolis-Hastings</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 9: איך עובדת הדגימה: Rejection ו-Metropolis-Hastings</h1>
+<p class="fact">שיטות ליבה</p>
+<p class="intro">להבין MCMC מבפנים: שני אלגוריתמים שבונים דגימות מהתפלגות שאי אפשר לחשב</p>
+<p class="src">מבוסס על notebook 9 (Rejection_sampling_mcmc)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין את הרעיון של דגימת דחייה (Rejection Sampling)</li><li>להבין את ההבדל בין התפלגות ידועה להתפלגות "עד כדי קבוע"</li><li>להריץ Metropolis-Hastings ידנית ולראות שהוא משחזר התפלגות</li><li>להבין למה השרשרת "זוכרת" את המיקום הקודם</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הבעיה: התפלגות שאי אפשר לדגום ממנה ישירות</h3>
+<p>נניח שיש לנו פונקציה f(x) שפרופורציונלית להתפלגות שאנחנו רוצים, אבל אנחנו לא יודעים את קבוע הנורמליזציה (בדיוק המצב עם הפוסטריור: אנחנו יודעים prior כפול likelihood, אבל לא את ה-Evidence). איך מכל זאת מקבלים דגימות מההתפלגות הנכונה?</p>
+<h3 class="lh">דגימת דחייה: הרעיון</h3>
+<p>בוחרים התפלגות "מכסה" g שקל לדגום ממנה (למשל אחידה), ומכפילים אותה בקבוע M כך ש-M·g תמיד מעל f. דוגמים נקודה s מ-g, מגרילים מטבע עם הסתברות f(s)/(M·g(s)), ואם יצא "כן" - שומרים את s. נקודות באזורים שבהם f גבוה מתקבלות לרוב, ובאזורים נמוכים נדחות. הדגימות שנשמרות מתפלגות בדיוק לפי f.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">דגימת דחייה על פונקציה משולשת</span><button type="button" class="copy" data-code="import numpy as np
+
+def g2(s):           # פונקציית המטרה (משולש)
+    if s &lt; 0:
+        return 0.5*s + 1
+    return -0.5*s + 1
+
+m = 4
+samples = []
+for ind in range(50000):
+    s = np.random.uniform(-2, 2)          # דגימה מהמכסה
+    prob_accept = g2(s) / (m * 0.25)      # הסתברות הקבלה
+    if np.random.rand() &lt; prob_accept:
+        samples.append(s)">העתק</button></div><pre><code>import numpy as np
+
+def g2(s):           # פונקציית המטרה (משולש)
+    if s &lt; 0:
+        return 0.5*s + 1
+    return -0.5*s + 1
+
+m = 4
+samples = []
+for ind in range(50000):
+    s = np.random.uniform(-2, 2)          # דגימה מהמכסה
+    prob_accept = g2(s) / (m * 0.25)      # הסתברות הקבלה
+    if np.random.rand() &lt; prob_accept:
+        samples.append(s)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>ההיסטוגרמה של samples משחזרת את הצורה המשולשת של g2 - למרות שמעולם לא דגמנו ממנה ישירות. החיסרון: הרבה דגימות נזרקות, ובממדים גבוהים כמעט הכל נדחה.</div>
+<h3 class="lh">Metropolis-Hastings: ללכת ברגל על ההתפלגות</h3>
+<p>במקום לזרוק נקודות אקראיות ולדחות רובן, בונים שרשרת: מכל נקודה מציעים נקודה חדשה בקרבת מקום (למשל מהתפלגות מעריכית סביב הנוכחית), ומחליטים אם לזוז לפי היחס f(חדש)/f(ישן). אם היחס מעל 1 - תמיד זזים ("עולים בהר"). אם מתחת - זזים בהסתברות של אותו יחס. כך השרשרת מבלה את רוב זמנה באזורים הגבוהים של ההתפלגות.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">Metropolis-Hastings ידני על גמא</span><button type="button" class="copy" data-code="import numpy as np, math
+
+lam, k = 5, 5
+def f(x):                    # פרופורציונלי לגמא, בלי קבוע
+    return x**(k-1) * np.exp(-lam*x)
+
+num_trials = 90000
+x_prev = 1
+samples = []
+for trial in range(num_trials):
+    # הצעה: מעריכית סביב הנקודה הנוכחית
+    x_next = np.random.exponential(x_prev)
+    accept_ratio = (f(x_next)/x_next) / (f(x_prev)/x_prev)
+    if np.random.rand() &lt; accept_ratio:
+        x_prev = x_next
+    samples.append(x_prev)">העתק</button></div><pre><code>import numpy as np, math
+
+lam, k = 5, 5
+def f(x):                    # פרופורציונלי לגמא, בלי קבוע
+    return x**(k-1) * np.exp(-lam*x)
+
+num_trials = 90000
+x_prev = 1
+samples = []
+for trial in range(num_trials):
+    # הצעה: מעריכית סביב הנקודה הנוכחית
+    x_next = np.random.exponential(x_prev)
+    accept_ratio = (f(x_next)/x_next) / (f(x_prev)/x_prev)
+    if np.random.rand() &lt; accept_ratio:
+        x_prev = x_next
+    samples.append(x_prev)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>אחרי זריקת ~5,000 הדגימות הראשונות (burn-in), ההיסטוגרמה של samples משחזרת את התפלגות גמא(5, 5) האמיתית - וכל זה בלי לדעת את קבוע הנורמליזציה.</div>
+<h3 class="lh">שלושה דברים לזכור</h3>
+<ul class="lb"><li>צריך רק את f עד כדי קבוע - בדיוק כמו הפוסטריור, שאנחנו יודעים רק prior × likelihood שלו.</li><li>הדגימות תלויות זו בזו (שרשרת מרקוב) - כל דגימה קרובה לקודמת. לכן צריך הרבה דגימות, ולכן מודדים autocorrelation (שיעור 11).</li><li>הדגימות הראשונות "זוכרות" את נקודת ההתחלה - זורקים אותן (tune / burn-in).</li></ul>
+<p class="key">Metropolis-Hastings הוא הבסיס לכל הדוגמים ש-PyMC מריץ בשבילנו. NUTS הוא האח המתקדם: במקום לצעוד באקראי, הוא משתמש בגרדיאנט כדי לדעת לאן כדאי ללכת.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>שנו את ההצעה ב-Metropolis: במקום Exponential(x_prev) הציעו x_prev + np.random.normal(0, 0.5). מה משתנה באופי השרשרת? הריצו וציירו את samples כפונקציה של מספר הדגימה.</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>עם הצעה נורמלית סימטרית, צעדי השרשרת קטנים ומקומיים יותר - הגרף נראה כמו "הליכה" חלקה, והשרשרת מטפסת לאזור הגבוה לאט יותר אבל חוקרת אותו בצפיפות. עם הצעה רחבה מדי - הרבה דחיות והשרשרת "נתקעת". איזון רוחב ההצעה הוא בדיוק מה ש-NUTS עושה אוטומטית.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה צריך לדעת על ההתפלגות כדי להריץ Metropolis-Hastings?</summary><p>רק פונקציה פרופורציונלית לה (עד כדי קבוע) - לא צריך את קבוע הנורמליזציה.</p></details>
+<details class="fold"><summary>מתי הצעה חדשה מתקבלת תמיד?</summary><p>כשהיא גבוהה יותר מהנוכחית לפי f (יחס הקבלה מעל 1) - "תמיד עולים בהר".</p></details>
+<details class="fold"><summary>למה זורקים את הדגימות הראשונות (tune)?</summary><p>כי הן תלויות בנקודת ההתחלה השרירותית ועדיין לא מייצגות את ההתפלגות היעד.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-8.html">← שיעור 8</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-10.html">שיעור 10 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

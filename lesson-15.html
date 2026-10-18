@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 15: סלמון: GP מול מודלים פרמטריים</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 15: סלמון: GP מול מודלים פרמטריים</h1>
+<p class="fact">תהליכים גאוסיאניים</p>
+<p class="intro">קשר ביולוגי לא לינארי - רגרסיה לינארית, ריבועית, ו-GP על אותם הנתונים</p>
+<p class="src">מבוסס על notebook 15 (spawning_salmon_gp_1_dim)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>לראות מתי מודל פרמטרי נכשל וה-GP מצליח</li><li>להשוות מודל לינארי, ריבועי ו-GP על אותם נתונים</li><li>לחלץ תחזיות עם אי-ודאות ואקסטרפולציה זהירה</li><li>לשאול שאלות הסתברות מורכבות מהתחזית</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הבעיה: כמה צאצאים יוצאים מסלמון מטיל?</h3>
+<p>הנתונים: מספר הסלמונים המטילים בנחל (spawners) מול מספר הצאצאים ששרדו (recruits). הידע הביולוגי אומר שהקשר לא לינארי - אי אפשר להכפיל צאצאים לנצח. בואו נראה מה קורה כשמכריחים על זה מודלים פרמטריים.</p>
+<h3 class="lh">ניסיון 1: קו ישר</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">רגרסיה לינארית בייסיאנית</span><button type="button" class="copy" data-code="with pm.Model() as linear_salmon_model:
+    β = pm.Normal('β', mu=0, sigma=50, shape=2)
+    σ = pm.HalfNormal('σ', sigma=50)
+    μ = β[0] + β[1] * x
+    recruits = pm.Normal('recruits', mu=μ, sigma=σ, observed=y)
+    linear_trace = pm.sample(2000, tune=500, cores=2)">העתק</button></div><pre><code>with pm.Model() as linear_salmon_model:
+    β = pm.Normal('β', mu=0, sigma=50, shape=2)
+    σ = pm.HalfNormal('σ', sigma=50)
+    μ = β[0] + β[1] * x
+    recruits = pm.Normal('recruits', mu=μ, sigma=σ, observed=y)
+    linear_trace = pm.sample(2000, tune=500, cores=2)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>20 קווי רגרסיה שנדגמו מהפוסטריור מספרים את הסיפור: הקו עובר דרך חלק מהנתונים אבל מפספס את העקמומיות הברורה. המודל פשוט לא מסוגל לבטא את האמת.</div>
+<h3 class="lh">ניסיון 2: פרבולה</h3>
+<p>מוסיפים מקדם ל-x² והתאמה משתפרת - אבל זה עדיין כובע פרמטרי: החלטנו מראש שהצורה פרבולית. מה אם הקשר האמיתי אחר? כאן נכנס ה-GP.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מודל GP על אותם נתונים</span><button type="button" class="copy" data-code="with pm.Model() as gp_salmon_model:
+    ρ = pm.HalfCauchy('ρ', 5)
+    η = pm.HalfCauchy('η', 5)
+    cov = η**2 * pm.gp.cov.ExpQuad(1, ls=ρ)
+    σ = pm.HalfCauchy('σ', 5)
+
+    recruit_gp = pm.gp.Marginal(cov_func=cov)
+    recruits = recruit_gp.marginal_likelihood(
+        'recruits', X=x.reshape(-1, 1), y=y, noise=σ)
+
+    gp_trace = pm.sample(2000, tune=500, cores=2, random_seed=42)">העתק</button></div><pre><code>with pm.Model() as gp_salmon_model:
+    ρ = pm.HalfCauchy('ρ', 5)
+    η = pm.HalfCauchy('η', 5)
+    cov = η**2 * pm.gp.cov.ExpQuad(1, ls=ρ)
+    σ = pm.HalfCauchy('σ', 5)
+
+    recruit_gp = pm.gp.Marginal(cov_func=cov)
+    recruits = recruit_gp.marginal_likelihood(
+        'recruits', X=x.reshape(-1, 1), y=y, noise=σ)
+
+    gp_trace = pm.sample(2000, tune=500, cores=2, random_seed=42)</code></pre></figure>
+<h3 class="lh">תחזית עם פס אי-וודאות</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">חיזוי על טווח רחב</span><button type="button" class="copy" data-code="X_pred = np.linspace(0, 500, 100)
+with gp_salmon_model:
+    salmon_pred = recruit_gp.conditional(&quot;salmon_pred&quot;,
+        X_pred.reshape(-1, 1))
+    gp_salmon_samples = pm.sample_posterior_predictive(
+        gp_trace, var_names=[&quot;salmon_pred&quot;])
+
+from pymc.gp.util import plot_gp_dist
+import arviz as az
+fig, ax = plt.subplots(figsize=(8, 6))
+plot_gp_dist(ax, az.extract(gp_salmon_samples.posterior_predictive
+    ['salmon_pred']).values.T, X_pred)">העתק</button></div><pre><code>X_pred = np.linspace(0, 500, 100)
+with gp_salmon_model:
+    salmon_pred = recruit_gp.conditional("salmon_pred",
+        X_pred.reshape(-1, 1))
+    gp_salmon_samples = pm.sample_posterior_predictive(
+        gp_trace, var_names=["salmon_pred"])
+
+from pymc.gp.util import plot_gp_dist
+import arviz as az
+fig, ax = plt.subplots(figsize=(8, 6))
+plot_gp_dist(ax, az.extract(gp_salmon_samples.posterior_predictive
+    ['salmon_pred']).values.T, X_pred)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>העקומה המשוערת עוקבת אחרי צורת הנתונים הטבעית, עם פס אי-וודאות שמתרחב כשמתרחקים מהנתונים. pred_noise=True יכלול גם את רעש המדידה עצמו (רחב יותר).</div>
+<h3 class="lh">אקסטרפולציה: בזהירות</h3>
+<p>מה יקרה אם יהיו 600 או 800 מטילים? טכנית אפשר לחזות - פשוט מרחיבים את הרשת. אבל שימו לב לפס: מעבר לטווח הנתונים הוא מתפוצץ. ה-GP יודע שהוא לא יודע, וזו תכונה יקרה. אין להתייחס לתחזית רחוקה כאל עובדה.</p>
+<h3 class="lh">שאלות מחקר אמיתיות, ישירות מהתחזית</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">שתי שאלות על נקודות עתידיות</span><button type="button" class="copy" data-code="# שאלה 1: עם 300 מטילים, מה הסיכוי ל-230 עד 240 צאצאים?
+with gp_salmon_model:
+    pred_300 = recruit_gp.conditional(&quot;pred_300&quot;, np.array([[300]]))
+    s300 = pm.sample_posterior_predictive(gp_trace, var_names=['pred_300'])
+
+vals = az.extract(s300.posterior_predictive)['pred_300'].values.ravel()
+((vals &gt; 230) &amp; (vals &lt; 240)).mean()
+
+# שאלה 2: מה הסיכוי ש-300 מטילים יניבו יותר מ-310?
+with gp_salmon_model:
+    pred_both = recruit_gp.conditional(&quot;pred_both&quot;, np.array([[300, 310]]))
+    s_both = pm.sample_posterior_predictive(gp_trace, var_names=['pred_both'])
+
+v = az.extract(s_both.posterior_predictive)['pred_both'].values.transpose()
+(v[:, 0] &gt; v[:, 1]).mean()">העתק</button></div><pre><code># שאלה 1: עם 300 מטילים, מה הסיכוי ל-230 עד 240 צאצאים?
+with gp_salmon_model:
+    pred_300 = recruit_gp.conditional("pred_300", np.array([[300]]))
+    s300 = pm.sample_posterior_predictive(gp_trace, var_names=['pred_300'])
+
+vals = az.extract(s300.posterior_predictive)['pred_300'].values.ravel()
+((vals &gt; 230) &amp; (vals &lt; 240)).mean()
+
+# שאלה 2: מה הסיכוי ש-300 מטילים יניבו יותר מ-310?
+with gp_salmon_model:
+    pred_both = recruit_gp.conditional("pred_both", np.array([[300, 310]]))
+    s_both = pm.sample_posterior_predictive(gp_trace, var_names=['pred_both'])
+
+v = az.extract(s_both.posterior_predictive)['pred_both'].values.transpose()
+(v[:, 0] &gt; v[:, 1]).mean()</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>שאלה 2 נותנת כמעט אפס: התשובה "יותר צאצאים מפחות הורים" בטווח הזה היא בלתי סבירה לפי המודל. שימו לב שהתשובה היא דירקטית מדגימות משותפות של שתי הנקודות - ה-GP שומר על המתאם ביניהן.</div>
+<p class="key">GP מנצח כשהצורה לא ידועה: במקום לנחש פרבולה או קו, מקבלים פונקציה גמישה עם אי-וודאות יושרת - שמתפוצצת ביושר מחוץ לנתונים.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>הרחיבו את החיזוי עד 800 מטילים (X_pred1 = np.linspace(0, 800, 150)) וציירו. מה קורה לרוחב הפס אחרי 500, ומה המסקנה התפעולית לגבי קבלת החלטות על טווחים אלה?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>הפס מתרחב דרמטית מעבר ל-500 (קצה הנתונים). מסקנה: תחזיות אקסטרפולציה הן כיוון בלבד, לא בסיס להחלטה - צריך עוד נתונים או ידע ביולוגי (למשל מודל פרמטרי ידוע ממדע הדגים) כדי לומר משהו משמעותי על 800 מטילים.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>למה המודל הלינארי נכשל כאן?</summary><p>הקשר האמיתי לא לינארי (ידע ביולוגי + הנתונים), וקו ישר לא יכול לבטא עקמומיות - הוא בדרך מפספס אותה.</p></details>
+<details class="fold"><summary>מה היתרון של pred_noise=True?</summary><p>כולל גם את רעש המדידה בתחזית - זו התחזית הנכונה כששואלים על תצפית עתידית אמיתית, לא על הפונקציה החלקה.</p></details>
+<details class="fold"><summary>למה אי-הוודאות גדלה מחוץ לטווח הנתונים?</summary><p>אין נתונים שמגבילים את הפונקציה שם - הקרנל מחזיר אותנו לפיזור ה-prior. זו תכונה רצויה: המודל מודה בבורות שלו.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-14.html">← שיעור 14</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-16.html">שיעור 16 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

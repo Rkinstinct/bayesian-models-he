@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 2: מודל נקודת שינוי, חלק 1: הרגלי ההודעות</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 2: מודל נקודת שינוי, חלק 1: הרגלי ההודעות</h1>
+<p class="fact">יסודות</p>
+<p class="intro">פואסון ומעריכית, נקודת שינוי τ, ומבנה מודל ראשון עם switch ב-PyMC</p>
+<p class="src">מבוסס על notebook 2 (switching_point_part1) והרצאה 2</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבחין בין משתנים מקריים בדידים, רציפים ומעורבים</li><li>להכיר את פואסון (ספירות) ואת המעריכית (ערכים חיוביים רציפים)</li><li>לבנות מודל נקודת שינוי מלא: priors, switch ו-observed</li><li>לענות על שאלות ישירות מדגימות הפוסטריור - בלי להריץ מחדש</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">שלושה סוגים של משתנים מקריים</h3>
+<p>לפני שבונים מודל, צריך לדעת איזה סוג משתנה עומד מולנו. בדיד מקבל ערכים מרשימה סופית או ניתנת לספירה (מספר קולות, דירוג סרטים) ומתואר בפונקציית הסתברות (PMF). רציף יכול לקבל כל ערך (טמפרטורה, זמן) ומתואר בפונקציית צפיפות (PDF). ויש גם מעורב - שילוב של השניים.</p>
+<h3 class="lh">פואסון: המודל הטבעי לספירות</h3>
+<p>כמה הודעות מגיעות ביום? כמה לקוחות נכנסים בשעה? אלו ספירות, וההתפלגות המתאימה היא פואסון. יש לה פרמטר אחד, λ (למבדא), ששולט גם בתוחלת וגם בשונות: ככל ש-λ גדול, ההסתברות זזה לערכים גבוהים. λ חייב להיות חיובי, ו-k (הערך הנצפה) חייב להיות שלם אי-שלילי.</p>
+<h3 class="lh">המעריכית: לגדלים חיוביים רציפים</h3>
+<p>ההתפלגות המעריכית (Exponential) מקבלת כל ערך אי-שלילי, כולל שברים, ולכן לא מתאימה לספירות - אבל מצוינת לזמנים, מחירים וכל גודל חיובי רציף. התוחלת שלה היא ההופכי של הפרמטר: 1/λ.</p>
+<p class="key">במציאות λ מוסתר מאיתנו - אנחנו רואים רק את הנתונים Z. כל הסטטיסטיקה הבייסיאנית היא הליכה "אחורה": מהנתונים לאמונות על הפרמטר המוסתר.</p>
+<h3 class="lh">הסיפור: האם הרגלי ההודעות השתנו?</h3>
+<p>יש לנו ספירה יומית של הודעות טקסט שמשתמש קיבל לאורך 74 ימים, בממוצע 19.7 הודעות ליום. השאלה: האם ההתנהגות השתנתה באמצע התקופה - בהדרגה או בבת אחת? המודל: לפני יום לא ידוע τ (טאו) קצב ההודעות הוא λ₁, ואחריו הוא λ₂. אם לא היה שינוי אמיתי, הפוסטריורים של λ₁ ו-λ₂ יצאו כמעט זהים.</p>
+<h3 class="lh">בחירת ה-priors</h3>
+<ul class="lb"><li>λ₁ ו-λ₂ חיוביים - התפלגות מעריכית היא בחירה טבעית. ההיפר-פרמטר α נקבע לפי ממוצע הנתונים: α = 1/19.7 ≈ 0.051.</li><li>ל-τ אין מידע מוקדם - כל יום סביר באותה מידה, ולכן DiscreteUniform על כל 74 הימים.</li><li>α נקרא היפר-פרמטר: פרמטר שמשפיע על פרמטרים אחרים.</li></ul>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מודל נקודת השינוי המלא</span><button type="button" class="copy" data-code="import pymc as pm
+import numpy as np
+
+with pm.Model() as model:
+    alpha = 1.0 / count_data.mean()
+
+    lambda_1 = pm.Exponential(&quot;lambda_1&quot;, alpha)
+    lambda_2 = pm.Exponential(&quot;lambda_2&quot;, alpha)
+    tau = pm.DiscreteUniform(&quot;tau&quot;, lower=0, upper=n_count_data - 1)
+
+    idx = np.arange(n_count_data)
+    lambda_ = pm.Deterministic(&quot;lambda_&quot;,
+        pm.math.switch(idx &lt; tau, lambda_1, lambda_2))
+
+    observation = pm.Poisson(&quot;obs&quot;, lambda_, observed=count_data)
+
+    step = pm.Metropolis()
+    trace = pm.sample(5000, tune=1000, step=step)">העתק</button></div><pre><code>import pymc as pm
+import numpy as np
+
+with pm.Model() as model:
+    alpha = 1.0 / count_data.mean()
+
+    lambda_1 = pm.Exponential("lambda_1", alpha)
+    lambda_2 = pm.Exponential("lambda_2", alpha)
+    tau = pm.DiscreteUniform("tau", lower=0, upper=n_count_data - 1)
+
+    idx = np.arange(n_count_data)
+    lambda_ = pm.Deterministic("lambda_",
+        pm.math.switch(idx &lt; tau, lambda_1, lambda_2))
+
+    observation = pm.Poisson("obs", lambda_, observed=count_data)
+
+    step = pm.Metropolis()
+    trace = pm.sample(5000, tune=1000, step=step)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>ממוצע הפוסטריור: λ₁ ≈ 17.8 (לפני), λ₂ ≈ 22.7 (אחרי). ההתפלגויות נפרדות בבירור - כמעט ודאי שההתנהגות השתנתה. הפוסטריור של τ מחודד סביב יום 45 (כ-48% מההסתברות) - השינוי היה פתאומי, לא הדרגתי.</div>
+<h3 class="lh">איך קוראים את מבנה המודל</h3>
+<ul class="lb"><li>pm.Exponential / pm.DiscreteUniform - משתנים סטוכסטיים: יש להם prior ו-PyMC דוגם אותם.</li><li>pm.math.switch - בוחר λ₁ או λ₂ לכל יום, לפי הצד של τ שבו היום נמצא.</li><li>pm.Deterministic - משתנה שנקבע לגמרי מההורים שלו. עוטפים בו את lambda_ כדי שיישמר ב-trace ויהיה אפשר לנתח אותו אחר כך.</li><li>observed=count_data - הרגע שבו הנתונים מתחברים למודל. זו הנראות.</li></ul>
+<h3 class="lh">למה דגימות הן כל כך שימושיות</h3>
+<p>עם הדגימות אפשר לענות על שאלות חדשות בלי להריץ את המודל מחדש. רוצים את ממוצע λ₁ בהינתן שהשינוי קרה לפני יום 45? פשוט מסננים את הדגימות:</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">התנייה על מידע חדש = סינון דגימות</span><button type="button" class="copy" data-code="post = trace.posterior
+lambda_1_samples = post[&quot;lambda_1&quot;].values.flatten()
+tau_samples = post[&quot;tau&quot;].values.flatten()
+
+# ממוצע λ1 רק בדגימות שבהן השינוי קרה לפני יום 45
+np.mean(lambda_1_samples[tau_samples &lt; 45])">העתק</button></div><pre><code>post = trace.posterior
+lambda_1_samples = post["lambda_1"].values.flatten()
+tau_samples = post["tau"].values.flatten()
+
+# ממוצע λ1 רק בדגימות שבהן השינוי קרה לפני יום 45
+np.mean(lambda_1_samples[tau_samples &lt; 45])</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>17.77 - התנייה על מידע חדש היא פשוט סינון של הדגימות. זה אחד הכלים החזקים ביותר בגישה הבייסיאנית.</div>
+<p>ובשביל הסקרנות: יום 45 הוא חג המולד, ובחודש שאחריו כותב הנתונים המקורי עבר לטורונטו והשאיר חברה מאחור - מה שמסביר את קפיצת ההודעות.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>חשבו מהדגימות: מה ההסתברות שהשינוי קרה בין יום 40 ליום 50? רמז: ספרו את החלק היחסי של דגימות τ בטווח.</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>np.mean((tau_samples &gt;= 40) &amp; (tau_samples &lt;= 50)) - מקבלים את ההסתברות ישירות כשבר הדגימות בתוך הטווח. לפי הפוסטריור המחודד סביב יום 45, התשובה תהיה גבוהה מאוד.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מתי נשתמש בפואסון ומתי במעריכית?</summary><p>פואסון לנתוני ספירה (מספר הודעות ביום). מעריכית לגדלים חיוביים רציפים (זמן, מחיר).</p></details>
+<details class="fold"><summary>מה עושה pm.math.switch במודל?</summary><p>בוחר לכל יום את λ המתאים: λ₁ אם היום לפני נקודת השינוי τ, ו-λ₂ אחרת.</p></details>
+<details class="fold"><summary>איך יודעים שהשינוי היה פתאומי ולא הדרגתי?</summary><p>הפוסטריור של τ מרוכז בימים ספורות סביב יום 45. שינוי הדרגתי (או אי קיום שינוי) היה מפזר אותו על הרבה ימים.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-1.html">← שיעור 1</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-3.html">שיעור 3 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

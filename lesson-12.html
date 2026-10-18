@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 12: מבוא לתהליכים גאוסיאניים (GP)</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 12: מבוא לתהליכים גאוסיאניים (GP)</h1>
+<p class="fact">תהליכים גאוסיאניים</p>
+<p class="intro">התפלגות על פונקציות: הקרנל, הממוצע, ורגרסיית GP בידיים (NumPy)</p>
+<p class="src">מבוסס על notebook 12 (gpr_intro)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין מהו תהליך גאוסי: התפלגות על פונקציות</li><li>להכיר את קרנל הריבוע-המעריכי (RBF) ואת תפקיד ℓ ו-σf</li><li>ליישם רגרסיית GP ב-NumPy ללא ספריות מיוחדות</li><li>להבין את ההבדל בין נתונים נקיים לרועשים</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הרעיון במשפט אחד</h3>
+<p>ברגרסיה רגילה מניחים צורה לפונקציה (קו ישר, פרבולה) ומחפשים את הפרמטרים. תהליך גאוסי (GP) לא מניח כמעט כלום על הצורה: הוא שם התפלגות על כל הפונקציות האפשריות, והנתונים מצמצמים אותה לפונקציות שמתאימות. במקום "מצא את הקו הנכון" - "תאר את כל הפונקציות הסבירות, וכמה כל אחת סבירה".</p>
+<div class="formula" dir="ltr">p(f | X) = N(f | μ, K),   K_ij = κ(x_i, x_j)</div>
+<ul class="lb"><li>f - וקטור ערכי הפונקציה בנקודות הקלט. בגלל שכל אוסף סופי של ערכים מתפלג נורמלי רב-ממדי, אפשר לעבוד עם מטריצות רגילות.</li><li>m (פונקציית הממוצע) - בדרך כלל לוקחים 0; ה-GP גמיש מספיק לדאוג לממוצע לבד.</li><li>κ (הקרנל / פונקציית השונות המשותפת) - הלב של העניין: היא אומרת כמה שתי נקודות קרובות צריכות "לזוז ביחד".</li></ul>
+<h3 class="lh">הקרנל RBF: קרבה = דמיון</h3>
+<div class="formula" dir="ltr">k(x, y) = σ_f² · exp( -d² / (2ℓ²) ),   d = |x - y|</div>
+<p>האינטואיציה: שתי נקודות קרובות בציר ה-x צריכות לקבל ערכי f דומים - אחרת הפונקציה תהיה שבורה. ככל שהמרחק גדל, המתאם דועך אקספוננציאלית. שני פרמטרים שולטים בהכל: ℓ (אורך הסקאלה) קובע כמה "רחוק" נחשב רחוק - ℓ גדול נותן פונקציות חלקות, ℓ קטן פונקציות משוננות. ו-σf קובע את גודל התנודות האנכיות.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">קרנל RBF ב-NumPy</span><button type="button" class="copy" data-code="import numpy as np
+
+def kernel(X1, X2, l=1.0, sigma_f=1.0):
+    &quot;&quot;&quot;מטריצת השונות המשותפת בין שתי קבוצות נקודות&quot;&quot;&quot;
+    sqdist = (np.sum(X1**2, 1).reshape(-1, 1)
+              + np.sum(X2**2, 1)
+              - 2 * np.dot(X1, X2.T))
+    return sigma_f**2 * np.exp(-0.5 / l**2 * sqdist)">העתק</button></div><pre><code>import numpy as np
+
+def kernel(X1, X2, l=1.0, sigma_f=1.0):
+    """מטריצת השונות המשותפת בין שתי קבוצות נקודות"""
+    sqdist = (np.sum(X1**2, 1).reshape(-1, 1)
+              + np.sum(X2**2, 1)
+              - 2 * np.dot(X1, X2.T))
+    return sigma_f**2 * np.exp(-0.5 / l**2 * sqdist)</code></pre></figure>
+<h3 class="lh">רגרסיית GP: התניה על הנתונים</h3>
+<p>כשיש נתוני אימון (X_train, Y_train), מחשבים את הפוסטריור של הפונקציה בנקודות חדשות X_* עם נוסחת ההתניה של גאוסיאנים רב-ממדיים: ממוצע חדש ומטריצת שונות חדשה שמתחשבים בקרבה של כל נקודה חדשה לנקודות האימון. בלי רעש, הפונקציות שנדגמות עוברות בדיוק דרך נקודות האימון והשונות שם היא אפס; בין הנקודות - אי-הוודאות.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">חישוב הפוסטריור (ממוצע ושונות) לנקודות חדשות</span><button type="button" class="copy" data-code="from numpy.linalg import inv
+
+def posterior(X_s, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1e-8):
+    K = kernel(X_train, X_train, l, sigma_f) + sigma_y**2 * np.eye(len(X_train))
+    K_s = kernel(X_train, X_s, l, sigma_f)
+    K_ss = kernel(X_s, X_s, l, sigma_f) + 1e-8 * np.eye(len(X_s))
+    K_inv = inv(K)
+
+    mu_s = K_s.T.dot(K_inv).dot(Y_train)                    # ממוצע
+    cov_s = K_ss - K_s.T.dot(K_inv).dot(K_s)                # שונות
+    return mu_s, cov_s">העתק</button></div><pre><code>from numpy.linalg import inv
+
+def posterior(X_s, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1e-8):
+    K = kernel(X_train, X_train, l, sigma_f) + sigma_y**2 * np.eye(len(X_train))
+    K_s = kernel(X_train, X_s, l, sigma_f)
+    K_ss = kernel(X_s, X_s, l, sigma_f) + 1e-8 * np.eye(len(X_s))
+    K_inv = inv(K)
+
+    mu_s = K_s.T.dot(K_inv).dot(Y_train)                    # ממוצע
+    cov_s = K_ss - K_s.T.dot(K_inv).dot(K_s)                # שונות
+    return mu_s, cov_s</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>שלוש דגימות מהפוסטריור עוברות דרך (או ליד) נקודות האימון, וביניהן מתפזרות לפסים של אי-וודאות. הממוצע הוא "הניחוש הטוב ביותר", והפס הוא מרווח הביטחון שלנו לכל נקודה.</div>
+<h3 class="lh">נתונים רועשים</h3>
+<p>מוסיפים לקרנל איבר רעש σy² על האלכסון (זה מה ש-sigma_y עושה בקוד). עכשיו הפונקציה לא חייבת לעבור בדיוק דרך נקודות האימון - היא מתקרבת אליהן, והשונות שם כבר לא אפס. המודל מבין שהנתונים עצמם רועשים.</p>
+<h3 class="lh">איך הפרמטרים משנים את התמונה</h3>
+<ul class="lb"><li>ℓ קטן (0.3): פונקציות משוננות שעוקבות אחרי כל נקודה - סכנת overfitting.</li><li>ℓ גדול (1.0+): פונקציות חלקות ושמרניות - קירוב גס יותר של הנתונים.</li><li>σf גדול: תנודות אנכיות גדולות ופס אי-וודאות רחב הרחק מהנתונים.</li><li>σy גדול: המודל "סולח" סטיות גדולות מהנתונים - רגרסיה רכה יותר.</li></ul>
+<p class="key">GP הוא הכלי שלנו כשהקשר לא לינארי ולא ידוע מראש: מקבלים פונקציה + אי-ודאות מקומית לכל נקודה, בלי לבחור צורה מראש.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>הריצו את ה-posterior עם ℓ=0.3, ℓ=1, ℓ=3 על אותם נתונים וציירו. באיזה ℓ נקודת ביניים בין שתי נקודות אימון רחוקות מקבלת את אי-הוודאות הגדולה ביותר? הסבירו דרך הקרנל.</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>ℓ=0.3. כש-ℓ קטן המתאם דועך במרחק קצר, ולכן נקודת ביניים רחוקה "במושגי הקרנל" משתי נקודות האימון כמעט ולא מושפעת מהן - השונות שלה נשארת גדולה (כמעט כמו ב-prior).</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מהו תהליך גאוסי?</summary><p>התפלגות על פונקציות: כל אוסף סופי של ערכי הפונקציה מתפלג נורמלי רב-ממדי עם מטריצת שונות שנקבעת על ידי הקרנל.</p></details>
+<details class="fold"><summary>מה תפקידו של ℓ בקרנל RBF?</summary><p>אורך הסקאלה: קובע באיזה מרחק נקודות עוד משפיעות זו על זו. ℓ גדול = פונקציות חלקות, ℓ קטן = משוננות.</p></details>
+<details class="fold"><summary>מה משתנה כשמוסיפים רעש σy למודל?</summary><p>הפונקציה כבר לא חייבת לעבור בדיוק דרך נקודות האימון, והשונות בנקודות האלה גדולה מאפס - המודל מכיר בכך שהמדידות רועשות.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-11.html">← שיעור 11</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-13.html">שיעור 13 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

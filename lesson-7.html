@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 7: הערכה במקום מבחני השערות</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 7: הערכה במקום מבחני השערות</h1>
+<p class="fact">שיטות ליבה</p>
+<p class="intro">רדון בבתים, "תרופה חכמה", ולמה "כמה שונה" עדיף על "מובהק/לא מובהק"</p>
+<p class="src">מבוסס על notebook 7 (Bayesian_hypothesis)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין את הבעיות במבחני השערות קלאסיים</li><li>לענות על שאלות קבוצה אחת ישירות מהפוסטריור (רדון)</li><li>להשתמש בפוסטריור-פרדיקטיבי לשאלות על תצפית עתידית</li><li>להשוות שתי קבוצות עם t ולחשב גודל אפקט</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">מה רע במבחן השערות קלאסי?</h3>
+<p>מבחן השערות מסתיים באחת משתי תשובות: "דוחים" או "לא דוחים" את השערת האפס. אף תשובה לא אומרת כמה שונה - שהיא השאלה המעניינת באמת. ובדרך צריך לבחור סף מובהקות שרירותי, מבחן שרירותי, וניסוח השערה שרירותי. הגישה הבייסיאנית מציעה משהו אינפורמטיבי יותר: אומדן של גודל ההבדל, יחד עם אי-הוודאות מלאה סביבו.</p>
+<h3 class="lh">קבוצה אחת: רדון בבתים במחוז הנפין</h3>
+<p>גז הרדון הוא הגורם המוביל לסרטן ריאות אצל לא מעשנים, ורמת הפעולה שה-EPA קבע היא 4 pCi/L. נתונים: מדידות רדון (בלוג) מבתים במחוז Hennepin. שתי שאלות: האם הממוצע במחוז גדול מ-4? ומה ההסתברות שבית אקראי יעבור את הרף?</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מודל קבוצה אחת</span><button type="button" class="copy" data-code="with pm.Model() as radon_model:
+    μ = pm.Normal('μ', mu=0, sigma=10)      # ממוצע בלוג-סקלה
+    σ = pm.Uniform('σ', 0, 10)              # חיובי, רחב
+    dist = pm.Normal('dist', mu=μ, sigma=σ, observed=hennepin_radon)
+
+with radon_model:
+    samples = pm.sample(1000, tune=1000, random_seed=20090425)">העתק</button></div><pre><code>with pm.Model() as radon_model:
+    μ = pm.Normal('μ', mu=0, sigma=10)      # ממוצע בלוג-סקלה
+    σ = pm.Uniform('σ', 0, 10)              # חיובי, רחב
+    dist = pm.Normal('dist', mu=μ, sigma=σ, observed=hennepin_radon)
+
+with radon_model:
+    samples = pm.sample(1000, tune=1000, random_seed=20090425)</code></pre></figure>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">שאלה 1: ההסתברות שהממוצע מעל הרף</span><button type="button" class="copy" data-code="import numpy as np
+mus = samples.posterior['μ'].values.flatten()
+# log(4) = 1.386
+1 - mus[mus &lt; np.log(4)].shape[0] / mus.shape[0]">העתק</button></div><pre><code>import numpy as np
+mus = samples.posterior['μ'].values.flatten()
+# log(4) = 1.386
+1 - mus[mus &lt; np.log(4)].shape[0] / mus.shape[0]</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>0.167 - ההסתברות שהממוצע במחוז גדול מ-4 היא כ-17%. שימו לב לפשטות: סופרים דגימות, וזו התשובה. אין p-value, אין סף שרירותי.</div>
+<h3 class="lh">שאלה 2: בית עתידי - הפוסטריור-פרדיקטיבי</h3>
+<p>שאלה על בית חדש היא לא שאלה על הפרמטרים אלא על תצפית עתידית. לכל דגימה מהפוסטריור (זוג μ, σ) מדמים מדידת בית חדשה, וסופרים כמה מהן עוברות את הרף. זו ההתפלגות הפוסטריור-פרדיקטיבית - היא כוללת גם את אי-הוודאות על הפרמטרים וגם את השונות הטבעית בין בתים.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">שתי דרכים לחשב את אותו דבר</span><button type="button" class="copy" data-code="# דרך 1: ידנית
+sigmas = samples.posterior['σ'].values.flatten()
+radon_samples = np.random.normal(mus, sigmas)
+(radon_samples &gt; np.log(4)).mean()          # 0.458
+
+# דרך 2: הפונקציה המובנית
+with radon_model:
+    pm.sample_posterior_predictive(samples, extend_inferencedata=True)
+posterior = samples.posterior_predictive['dist'].values.flatten()
+(posterior &gt; np.log(4)).mean()              # 0.464">העתק</button></div><pre><code># דרך 1: ידנית
+sigmas = samples.posterior['σ'].values.flatten()
+radon_samples = np.random.normal(mus, sigmas)
+(radon_samples &gt; np.log(4)).mean()          # 0.458
+
+# דרך 2: הפונקציה המובנית
+with radon_model:
+    pm.sample_posterior_predictive(samples, extend_inferencedata=True)
+posterior = samples.posterior_predictive['dist'].values.flatten()
+(posterior &gt; np.log(4)).mean()              # 0.464</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>כ-46-47%: כמעט מחצית מהבתים במחוז צפויים לעבור את רף ה-4 - למרות שהממוצע כנראה מתחתיו. הפיזור בין בתים גדול, וזו תובנה שהממוצע לבדו היה מסתיר.</div>
+<h3 class="lh">שתי קבוצות: התרופה החכמה</h3>
+<p>דוגמה מקורס: ניסוי קליני שבודק "תרופה חכמה" שאמורה להעלות IQ. 47 נבדקים בקבוצת הטיפול, 42 בפלצבו. יש ערכים קיצוניים, ולכן נראות t לשתי הקבוצות (כמו בשיעור 4), עם ν משותף. במקום מבחן: מחשבים את הפוסטריור של הפרש הממוצעים ושל גודל האפקט.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">הפרש ממוצעים וגודל אפקט כמשתנים דטרמיניסטיים</span><button type="button" class="copy" data-code="with pm.Model() as drug_model:
+    μ_0 = pm.Normal('μ_0', 100, sigma=10)
+    μ_1 = pm.Normal('μ_1', 100, sigma=10)
+    σ_0 = pm.Uniform('σ_0', lower=0, upper=20)
+    σ_1 = pm.Uniform('σ_1', lower=0, upper=20)
+    ν = pm.Exponential('ν', 1/30.)
+
+    drug_like = pm.StudentT('drug_like', nu=ν, mu=μ_1,
+                            sigma=σ_1, observed=drug.iq)
+    placebo_like = pm.StudentT('placebo_like', nu=ν, mu=μ_0,
+                               sigma=σ_0, observed=placebo.iq)
+
+    diff_of_means = pm.Deterministic('difference of means', μ_1 - μ_0)
+    effect_size = pm.Deterministic('effect size',
+        diff_of_means / np.sqrt(((n1-1)*σ_1**2 + (n2-1)*σ_0**2) / (n1+n2-2)))
+
+    drug_trace = pm.sample(10000, random_seed=20090425)">העתק</button></div><pre><code>with pm.Model() as drug_model:
+    μ_0 = pm.Normal('μ_0', 100, sigma=10)
+    μ_1 = pm.Normal('μ_1', 100, sigma=10)
+    σ_0 = pm.Uniform('σ_0', lower=0, upper=20)
+    σ_1 = pm.Uniform('σ_1', lower=0, upper=20)
+    ν = pm.Exponential('ν', 1/30.)
+
+    drug_like = pm.StudentT('drug_like', nu=ν, mu=μ_1,
+                            sigma=σ_1, observed=drug.iq)
+    placebo_like = pm.StudentT('placebo_like', nu=ν, mu=μ_0,
+                               sigma=σ_0, observed=placebo.iq)
+
+    diff_of_means = pm.Deterministic('difference of means', μ_1 - μ_0)
+    effect_size = pm.Deterministic('effect size',
+        diff_of_means / np.sqrt(((n1-1)*σ_1**2 + (n2-1)*σ_0**2) / (n1+n2-2)))
+
+    drug_trace = pm.sample(10000, random_seed=20090425)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>ההסתברות הפוסטריורית שממוצע ה-IQ בקבוצת הטיפול גבוה מבפלצבו: 0.99. וגודל האפקט מגיע כהתפלגות שלמה - אפשר לראות גם כמה הוא גדול וגם כמה אנחנו בטוחים בו.</div>
+<p class="key">במקום "מובהק ברמת 0.05" אומרים: "ההסתברות שהטיפול עדיף היא 0.99, וגודל האפקט מתפלג כך וכך". ישיר, מלא, וקשה לפרש לא נכון.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>חשבו מה-trace של התרופה: מה ההסתברות שההבדל בין הקבוצות גדול מ-2 נקודות IQ?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>np.mean(drug_trace.posterior["difference of means"].values &gt; 2) - שוב ספירת דגימות. היתרון: כל שאלה מספרית על ההפרש הופכת לשורה אחת.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>למה הערכה עדיפה על מבחן השערות?</summary><p>כי היא נותנת את גודל ההבדל ואת אי-הוודאות סביבו, ולא רק "דוחים/לא דוחים" - מידע הרבה יותר שימושי להחלטות.</p></details>
+<details class="fold"><summary>מה ההבדל בין שאלה על הממוצע לשאלה על בית עתידי?</summary><p>שאלה על הממוצע נענית מהפוסטריור של μ. שאלה על תצפית עתידית דורשת פוסטריור-פרדיקטיבי, שכולל גם את השונות הטבעית של התצפיות.</p></details>
+<details class="fold"><summary>למה בחרו נראות t לנתוני ה-IQ?</summary><p>יש ערכים קיצוניים בנתונים, ו-t חסינה אליהם - הם לא מעוותים את המרכז (שיעור 4).</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-6.html">← שיעור 6</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-8.html">שיעור 8 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

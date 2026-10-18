@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 8: PyMC מבפנים: MCMC בקוד</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 8: PyMC מבפנים: MCMC בקוד</h1>
+<p class="fact">שיטות ליבה</p>
+<p class="intro">אנטומיה של מודל, גרף המודל, קטלוג ההתפלגויות, וחילוץ הפוסטריור</p>
+<p class="src">מבוסס על notebook 8 (MCMC_setup)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>לראות מודל שלם "מלמטה למעלה" - כל שורה ומה היא עושה</li><li>לייצר גרף ויזואלי של המודל עם model_to_graphviz</li><li>להכיר את קטלוג ההתפלגויות הנפוצות ב-PyMC</li><li>לחלץ את דגימות הפוסטריור מה-trace ולעבוד איתן</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">למה MCMC בכלל?</h3>
+<p>בשיעור 1 ראינו שאת הפוסטריור של בטא-בינומי אפשר לחשב אנליטית. אבל ברגע שהמודל קצת יותר מורכב, החישוב האנליטי נהיה בלתי אפשרי. הפתרון: במקום לחשב את הפוסטריור, דוגמים ממנו אלפי דגימות עם אלגוריתם שנקרא MCMC (Markov Chain Monte Carlo). כל התשובות - ממוצעים, מרווחים, הסתברויות - מתקבלות מהדגימות האלה.</p>
+<h3 class="lh">מודל שלם, שורה אחר שורה</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">בינוי מלמטה למעלה</span><button type="button" class="copy" data-code="import pymc as pm
+
+n_trials = 10
+succses = 8
+
+with pm.Model() as baseball:
+    # 1. prior על ההסתברות לחבטה
+    theta = pm.Beta('Theta', alpha=81, beta=219)
+
+    # 2. נראות: הנתונים בהינתן הפרמטר
+    hits = pm.Binomial('hits', n=n_trials, p=theta, observed=succses)
+
+    # 3. דגימה מהפוסטריור עם MCMC
+    baseball_samples = pm.sample(5000)">העתק</button></div><pre><code>import pymc as pm
+
+n_trials = 10
+succses = 8
+
+with pm.Model() as baseball:
+    # 1. prior על ההסתברות לחבטה
+    theta = pm.Beta('Theta', alpha=81, beta=219)
+
+    # 2. נראות: הנתונים בהינתן הפרמטר
+    hits = pm.Binomial('hits', n=n_trials, p=theta, observed=succses)
+
+    # 3. דגימה מהפוסטריור עם MCMC
+    baseball_samples = pm.sample(5000)</code></pre></figure>
+<p>ה-with חשוב: כל הקוד המוזח (indented) שייך למודל. PyMC "מקליט" כל משתנה שמוגדר בבלוק - נצפה או לא - ושומר את כולם במקום אחד כדי להתאים את המודל כיחידה.</p>
+<h3 class="lh">לראות את המודל: גרף</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">ויזואליזציה של מבנה המודל</span><button type="button" class="copy" data-code="pm.model_to_graphviz(baseball)">העתק</button></div><pre><code>pm.model_to_graphviz(baseball)</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>מתקבל גרף מכוון (DAG): אליפסות לבנות הן priors (Theta), אליפסה אפורה היא הנראות עם הנתונים (hits), והחצים מראים מי משפיע על מי. מבנה הגרף הוא לב המודל - אפשר לקרוא אותו גם בלי שורת קוד אחת.</div>
+<h3 class="lh">קטלוג התפלגויות שימושי</h3>
+<ul class="lb"><li>בדידות: pm.Bernoulli(p) - הצלחה/כישלון בודד. pm.Binomial(n, p) - מספר הצלחות מתוך n. pm.Poisson(mu) - ספירות.</li><li>רציפות: pm.Normal(mu, sigma) - סימטרית, כל המספרים. pm.Uniform(lower, upper) - "לא יודע כלום בתוך טווח". pm.Exponential(lam) - חיוביים, מתכלה מהר.</li><li>עוד שפגשנו: pm.Beta (הסתברויות, [0,1]), pm.HalfNormal (חיוביים), pm.Gamma (חיוביים א-סימטריים), pm.StudentT (זנבות כבדים), pm.DiscreteUniform (בדיד אחיד).</li></ul>
+<h3 class="lh">חילוץ הפוסטריור</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מהדגימות ועד היסטוגרמה</span><button type="button" class="copy" data-code="# האובייקט שחוזר מכיל את כל הדגימות
+baseball_samples.posterior['Theta'].shape        # (chains, draws)
+
+# משטחים לוקטור אחד ארוך של דגימות
+import numpy as np
+import matplotlib.pyplot as plt
+
+samples = np.array(baseball_samples.posterior['Theta']).flatten()
+plt.hist(samples, bins=30)
+plt.show()">העתק</button></div><pre><code># האובייקט שחוזר מכיל את כל הדגימות
+baseball_samples.posterior['Theta'].shape        # (chains, draws)
+
+# משטחים לוקטור אחד ארוך של דגימות
+import numpy as np
+import matplotlib.pyplot as plt
+
+samples = np.array(baseball_samples.posterior['Theta']).flatten()
+plt.hist(samples, bins=30)
+plt.show()</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>samples הוא וקטור של אלפי דגימות theta מהפוסטריור. מכאן והלאה כל ניתוח הוא חשבון פשוט על הוקטור: ממוצע, אחוזונים, היסטוגרמה, הסתברויות.</div>
+<p class="key">הפוסטריור ב-PyMC הוא לא פונקציה - הוא ערימת דגימות. כל שאלה על הפרמטר הופכת לספירה או ממוצע על הדגימות.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>הוסיפו למודל את השורה pm.model_to_graphviz(baseball) והריצו. מחדדו: מהו הסימן החזותי שמבדיל משתנה נצפה (observed) ממשתנה סטוכסטי רגיל?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>המשתנה הנצפה (hits, עם הנתונים) מופיע כאליפסה אפורה/ממולאת, והמשתנים הסטוכסטיים עם prior (Theta) כאליפסות לבנות. החץ מ-Theta אל hits מראה את כיוון ההשפעה בגרף הגנרטיבי.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>למה צריך MCMC אם יש נוסחת בייס?</summary><p>כי במודלים מורכבים אי אפשר לחשב את הפוסטריור אנליטית (בעיקר בגלל ה-Evidence). MCMC דוגם מהפוסטריור במקום לחשב אותו.</p></details>
+<details class="fold"><summary>מה עושה בלוק with pm.Model()?</summary><p>"מקליט" את כל המשתנים שמוגדרים בתוכו וקושר אותם למודל אחד, כך שאפשר להתאים אותו כיחידה.</p></details>
+<details class="fold"><summary>איך מקבלים את דגימות הפוסטריור של פרמטר?</summary><p>דרך trace.posterior["שם_הפרמטר"] - כפי שנקרא במודל - ואז flatten לוקטור אחד.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-7.html">← שיעור 7</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-9.html">שיעור 9 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

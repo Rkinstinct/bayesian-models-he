@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 1: חשיבה בייסיאנית: מהממוצע החבטות ועד הפוסטריור</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 1: חשיבה בייסיאנית: מהממוצע החבטות ועד הפוסטריור</h1>
+<p class="fact">יסודות</p>
+<p class="intro">מה הופך מודל לבייסיאני, נוסחת בייס עם נתונים, והדגמה ראשונה ב-PyMC</p>
+<p class="src">מבוסס על notebook 1 (PyMc_intro_beta_binomial) והרצאה 1</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין את ההבדל בין גישה תדירותית (Frequentist) לגישה בייסיאנית</li><li>לזהות את שלושת הרכיבים: ידע מוקדם (Prior), נראות (Likelihood) ופוסטריור (Posterior)</li><li>לכתוב מודל ראשון ב-PyMC: בטא-בינומי על ממוצע חבטות</li><li>להבין מהו מרווח HDI ומה הוא אומר בדיוק</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">השאלה שפותחת את הקורס</h3>
+<p>אתם המנהלים של קבוצת בייסבול. שחקן חדש הגיע, וב-10 פעמים שעמד לחבוט הצליח 8 פעמים. מה ממוצע החבטות שלו? התשובה האינטואיטיבית היא 0.8 - אבל אז מגלים עובדה: אפילו השחקן הטוב בהיסטוריה לא עבר את 0.4. פתאום 0.8 נשמע מוגזם. האינטואיציה הזו - שיש לנו ידע מוקדם שצריך לשלב עם הנתונים - היא בדיוק הלב של הגישה הבייסיאנית.</p>
+<p class="key">גישה בייסיאנית = לקחת אמונה קודמת (Prior), לעדכן אותה עם נתונים (Likelihood), ולקבל אמונה מעודכנת (Posterior).</p>
+<h3 class="lh">מה הופך מודל לבייסיאני?</h3>
+<p>בגישה התדירותית (Frequentist) מניחים שלפרמטר יש ערך אמיתי אחד וקבוע, והנתונים הם מה שמקרי. בגישה הבייסיאנית ההפך: הנתונים שראינו הם הקבועים, והפרמטר הוא משתנה מקרי - אנחנו מחזיקים אמונות לגביו ומתארים אותן בהתפלגות הסתברות. זו דרך מתמטית מדויקת לומר "כמה אנחנו מאמינים בכל ערך אפשרי".</p>
+<ul class="lb"><li>תדירותי: הפרמטר קבוע אך לא ידוע. חסר משמעות לומר "ההסתברות שהפרמטר גדול מ-X".</li><li>בייסיאני: הפרמטר הוא משתנה מקרי. מותר ורצוי לומר "ההסתברות שהפרמטר גדול מ-X היא 0.17".</li><li>מרווח בטחון (תדירותי) מדבר על התהליך; מרווח אמינות (בייסיאני) מדבר ישירות על הפרמטר.</li></ul>
+<h3 class="lh">נוסחת בייס עם נתונים</h3>
+<div class="formula" dir="ltr">P(θ | data) = P(data | θ) · P(θ) / P(data)</div>
+<ul class="lb"><li>P(θ) - ה-Prior: מה האמונה שלנו לפני שראינו נתונים. למשל "ממוצעי חבטות הם בערך 0.27, וכמעט אף פעם לא מעל 0.4".</li><li>P(data | θ) - ה-Likelihood (הנראות): אם הפרמטר הוא θ, כמה סבירים הנתונים שראינו. כאן: 8 חבטות מתוך 10 בהינתן θ (התפלגות בינומית).</li><li>P(θ | data) - ה-Posterior: האמונה המעודכנת אחרי הנתונים. זה מה שאנחנו רוצים.</li><li>P(data) - ה-Evidence: מספר נורמליזציה שמבטיח שהסכום יהיה 1. בדרך כלל קשה לחישוב - ובגלל זה צריך דגימה (שיעור 9).</li></ul>
+<h3 class="lh">סוגי Priors</h3>
+<ul class="lb"><li>לא אינפורמטיבי: כשאין שום ידע. למשל Uniform(0,1) - "כל ערך בין 0 ל-1 סביר באותה מידה".</li><li>אינפורמטיבי: כשיש ידע אמיתי. לממוצע חבטות נשתמש בהתפלגות בטא שמרוכזת סביב 0.27.</li><li>קוניוגטי (Conjugate): prior שהפוסטריור שמתקבל ממנו מאותה משפחה. בטא + בינומית = בטא. נוח אנליטית, אבל עם PyMC לא חייבים את זה.</li></ul>
+<p>התפלגות בטא מוגדרת על הקטע [0,1] ולכן מושלמת להסתברויות. לפי נתוני הליגה בוחרים למשל Beta(alpha=81, beta=219), שממוצעה כ-0.27 - בדיוק אזור ממוצעי החבטות המקובלים.</p>
+<h3 class="lh">המודל הראשון שלנו ב-PyMC</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">מודל בטא-בינומי לממוצע חבטות</span><button type="button" class="copy" data-code="import pymc as pm
+
+with pm.Model() as beta_binomial:
+    # הידע המוקדם: ממוצע חבטות טיפוסי בליגה
+    theta = pm.Beta('theta', alpha=81, beta=219)
+
+    # הנראות: 8 חבטות מתוך 10 ניסיונות
+    hits = pm.Binomial('hits', n=10, p=theta, observed=8)
+
+    # דגימה מהפוסטריור
+    samples = pm.sample(5000)
+
+import matplotlib.pyplot as plt
+plt.hist(samples.posterior['theta'].values.flatten(), bins=30)
+plt.show()">העתק</button></div><pre><code>import pymc as pm
+
+with pm.Model() as beta_binomial:
+    # הידע המוקדם: ממוצע חבטות טיפוסי בליגה
+    theta = pm.Beta('theta', alpha=81, beta=219)
+
+    # הנראות: 8 חבטות מתוך 10 ניסיונות
+    hits = pm.Binomial('hits', n=10, p=theta, observed=8)
+
+    # דגימה מהפוסטריור
+    samples = pm.sample(5000)
+
+import matplotlib.pyplot as plt
+plt.hist(samples.posterior['theta'].values.flatten(), bins=30)
+plt.show()</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>מתקבלת היסטוגרמה של theta המרוכזת סביב 0.30 בערך - הרבה יותר קרוב לידע המוקדם (0.27) מאשר ל-0.8 הגולמי. הנתונים הזיזו את האמונה, אבל לא "דרסו" אותה.</div>
+<p>ושימו לב מה קורה אם במקום prior מושכל נבחר Uniform(0,1) - מודל "חסר דעה". הפוסטריור יזוז הרבה יותר קרוב ל-0.8. בחירת ה-prior היא חלק מהמודל, והיא שקופה וניתנת לביקורת - זה יתרון, לא חיסרון.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">אותו מודל עם prior אחיד</span><button type="button" class="copy" data-code="with pm.Model() as uniform_binomial:
+    theta = pm.Uniform('theta', lower=0.0, upper=1.0)
+    hits = pm.Binomial('hits', n=10, p=theta, observed=8)
+    samples_uni = pm.sample(5000, tune=1000, cores=2, chains=4)">העתק</button></div><pre><code>with pm.Model() as uniform_binomial:
+    theta = pm.Uniform('theta', lower=0.0, upper=1.0)
+    hits = pm.Binomial('hits', n=10, p=theta, observed=8)
+    samples_uni = pm.sample(5000, tune=1000, cores=2, chains=4)</code></pre></figure>
+<h3 class="lh">מה מחפשים בפוסטריור</h3>
+<ul class="lb"><li>התמיכה (Support): אילו ערכים בכלל אפשריים.</li><li>השונות: כמה אנחנו בטוחים. פוסטריור צר = ודאות גבוהה.</li><li>המוד (Mode): הערך הסביר ביותר.</li><li>HDI (Highest Density Interval): הקטע הצר ביותר שמכיל למשל 94% מההסתברות. הפירוש המדויק: "יש 94% הסתברות שהפרמטר בתוך המרווח" - מרווח בטחון תדירותי אי אפשר לפרש ככה.</li></ul>
+<div class="callout"><strong>למה זה חשוב</strong><p>כל שאר הקורס הוא הרחבה של אותו רעיון: מגדירים prior, מחברים נתונים דרך נראות, ודוגמים מהפוסטריור. כשהפוסטריור לא ניתן לחישוב אנליטי (כמעט תמיד), PyMC דוגם אותו עבורנו.</p></div>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>שנו את המודל: השחקן קיבל 30 ניסיונות וקלע 24 חבטות. הריצו גם עם Beta(81,219) וגם עם Uniform(0,1). איך משתנה המרחק בין שני הפוסטריורים לעומת המקרה של 8 מתוך 10, ולמה?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>עם 30 ניסיונות יש פי שלושה נתונים, ולכן הנראות חזקה בהרבה מה-prior. שני הפוסטריורים יתקרבו מאוד זה לזה ויהיו מרוכזים הרבה יותר. הכלל: ככל שיש יותר נתונים, ה-prior משפיע פחות - "הנתונים מדברים בעצמם".</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מהו ה-prior במודל הבייסיאני?</summary><p>ההתפלגות שמייצגת את האמונה שלנו על הפרמטר לפני שהתבוננו בנתונים.</p></details>
+<details class="fold"><summary>מה ההבדל בין מרווח HDI לבין מרווח בטחון תדירותי?</summary><p>HDI אומר שיש X% הסתברות שהפרמטר בתוך המרווח. מרווח בטחון מדבר על תכונה של התהליך בחזרות רבות, לא על הפרמטר עצמו.</p></details>
+<details class="fold"><summary>מה קורה להשפעת ה-prior כשכמות הנתונים גדלה?</summary><p>היא נחלשת - הנראות שולטת, והפוסטריורים של priors שונים מתקרבים זה לזה.</p></details>
+<nav class="lnav">
+<span></span>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-2.html">שיעור 2 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

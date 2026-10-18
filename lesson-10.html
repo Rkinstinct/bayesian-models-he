@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 10: מודלים היררכיים: לשתף מידע בין קבוצות</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 10: מודלים היררכיים: לשתף מידע בין קבוצות</h1>
+<p class="fact">שיטות ליבה</p>
+<p class="intro">זמני תגובה בצ'אט, pooling מול partial pooling, ואפקט ה-shrinkage</p>
+<p class="src">מבוסס על notebook 10 (Hierarchical_modelling)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להבין את הבעיה עם מודל נפרד לכל קבוצה (unpooled)</li><li>להבין את הרעיון של partial pooling דרך היפר-פרמטרים</li><li>להכיר את ההתפלגות הבינומית השלילית ב-PyMC</li><li>לראות את אפקט ה-shrinkage על אומדנים של קבוצות קטנות</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">הסיפור: למי אני עונה מהר בצ'אט?</h3>
+<p>יש לי נתוני שיחות hangouts: כמה זמן לקח לי לענות לכל אדם. האינטואיציה אומרת שזמן התגובה תלוי במי שמולי - לחברה אענה מהר יותר מלחבר רחוק. אז אפשר לבנות מודל נפרד לכל אדם (unpooled). הבעיה: לחלק מהאנשים יש מעט מאוד הודעות, ואומדן שמבוסס על 3 הודעות יהיה מאוד לא יציב.</p>
+<h3 class="lh">שלוש אסטרטגיות מידול</h3>
+<ul class="lb"><li>Pooled (מאוחד לגמרי): מודל אחד לכולם. מתעלם מההבדלים בין אנשים - גרוע כשהם אמיתיים.</li><li>Unpooled (נפרד לגמרי): מודל לכל אדם. מדויק למי שיש הרבה נתונים, רועש ולא יציב למי שיש מעט.</li><li>Partial pooling (היררכי): פרמטר לכל אדם, אבל הפרמטרים "קשורים" דרך היפר-פרמטרים משותפים. הטוב מכל העולמות.</li></ul>
+<h3 class="lh">הבינומית השלילית ב-PyMC</h3>
+<p>בקורס ההסתברות מכירים NB(r, p) - מספר ניסיונות עד r הצלחות. ב-PyMC הפרמטריזציה אחרת: NB(μ, α) - ממוצע ופיזור. השונות היא μ + α·μ², כך ש-α קטן משמעותו פיזור גדול ביחס לממוצע (overdispersion) - בדיוק מה שצריך לנתוני ספירה שהפואסון צר מדי בשבילם.</p>
+<h3 class="lh">המודל ההיררכי</h3>
+<div class="formula" dir="ltr">y_{ji} ~ NegBinomial(μ_i, α_i);  μ_i ~ Gamma(μ_μ, σ_μ);  α_i ~ Gamma(μ_α, σ_α)</div>
+<p>הקסם: לכל אדם i יש פרמטרים משלו (μ_i, α_i), אבל הם נדגמים מהתפלגויות משותפות שהפרמטרים שלהן (ההיפר-פרמטרים) נלמדים גם הם מהנתונים. ההתפלגות המשותפת מייצגת את "הנטייה הטבעית שלי לענות מהר או לאט" - וכל אדם הוא וריאציה סביבה.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">שלד המודל ההיררכי</span><button type="button" class="copy" data-code="with pm.Model() as model_hir:
+    # היפר-פרמטרים: המבנה המשותף לכל האנשים
+    hyper_mu_mu = pm.Uniform('hyper_mu_mu', lower=0, upper=60)
+    hyper_mu_sd = pm.Uniform('hyper_mu_sd', lower=0, upper=50)
+    hyper_alpha_mu = pm.Uniform('hyper_alpha_mu', lower=0, upper=10)
+    hyper_alpha_sd = pm.Uniform('hyper_alpha_sd', lower=0, upper=50)
+
+    # פרמטר לכל אדם, שואב מהמשותף
+    mu = pm.Gamma('mu', mu=hyper_mu_mu, sigma=hyper_mu_sd,
+                  shape=n_participants)
+    alpha = pm.Gamma('alpha', mu=hyper_alpha_mu, sigma=hyper_alpha_sd,
+                     shape=n_participants)
+
+    # הנראות
+    y_est = pm.NegativeBinomial('y_est',
+        mu=mu[participants_idx], alpha=alpha[participants_idx],
+        observed=messages['time_delay_seconds'].values)">העתק</button></div><pre><code>with pm.Model() as model_hir:
+    # היפר-פרמטרים: המבנה המשותף לכל האנשים
+    hyper_mu_mu = pm.Uniform('hyper_mu_mu', lower=0, upper=60)
+    hyper_mu_sd = pm.Uniform('hyper_mu_sd', lower=0, upper=50)
+    hyper_alpha_mu = pm.Uniform('hyper_alpha_mu', lower=0, upper=10)
+    hyper_alpha_sd = pm.Uniform('hyper_alpha_sd', lower=0, upper=50)
+
+    # פרמטר לכל אדם, שואב מהמשותף
+    mu = pm.Gamma('mu', mu=hyper_mu_mu, sigma=hyper_mu_sd,
+                  shape=n_participants)
+    alpha = pm.Gamma('alpha', mu=hyper_alpha_mu, sigma=hyper_alpha_sd,
+                     shape=n_participants)
+
+    # הנראות
+    y_est = pm.NegativeBinomial('y_est',
+        mu=mu[participants_idx], alpha=alpha[participants_idx],
+        observed=messages['time_delay_seconds'].values)</code></pre></figure>
+<h3 class="lh">שתי מתנות של המודל ההיררכי</h3>
+<ul class="lb"><li>שיתוף מידע: אדם עם מעט הודעות "שואל" חוזק מהאחרים - האומדן שלו נמשך לעבר המרכז המשותף במקום להסתמך על 3 תצפיות בלבד.</li><li>שתי רמות של תשובה: מקבלים גם אומדן לכל אדם בנפרד וגם אומדן כללי ל"האדם הממוצע".</li></ul>
+<h3 class="lh">אפקט ה-shrinkage</h3>
+<p>כשמשווים את הפוסטריורים של ה-μ-ים בין המודל הנפרד להיררכי, רואים שהאומדנים ההיררכיים צרים יותר ו"נמשכו" זה לעבר זה - במיוחד אצל אנשים עם מעט נתונים. התופעה נקראת shrinkage (כיווץ): המודל מצמצם את השפעת הרעש של המדגמים הקטנים. ככל שלקבוצה יש פחות נתונים, היא נמשכת חזק יותר למרכז.</p>
+<p class="key">מודל היררכי הוא הדרך הבייסיאנית לומר: "הקבוצות שונות זו מזו, אבל לא שונות לגמרי" - והנתונים מחליטים כמה.</p>
+<h3 class="lh">לשאול את הפוסטריור שאלות</h3>
+<p>מה הסיכוי שאענה לאנה תוך 10 שניות? לוקחים את הדגימות הפוסטריור-פרדיקטיביות שלה וסופרים כמה מהן קטנות מ-10: 36%. וליונס? 20%. ואפשר גם לשאול "מה הסיכוי שאענה ל-X מהר יותר מאשר ל-Y" - שוב, ספירת דגימות.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>חשבו: מה יקרה לשונות של היפר-התפלגות אם כל האנשים עונים בקצב דומה מאוד? ומה המשמעות עבור אדם חדש בלי אף הודעה?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>אם כולם דומים, ה-σ ההיררכי יהיה קטן - ההתפלגות המשותפת צרה. עבור אדם חדש בלי נתונים, האומדן שלו יהיה פשוט ההתפלגות ההיררכית עצמה - "הניחוש הטוב ביותר" לפני שיש נתונים. זה ה-prior ההיררכי, והוא מבוסס נתונים ולא שרירותי.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה הבעיה במודל unpooled לאנשים עם מעט הודעות?</summary><p>האומדנים שלהם רועשים ולא יציבים - מבוססים על מדגם זעיר בלי שום "עוגן".</p></details>
+<details class="fold"><summary>מהו shrinkage?</summary><p>משיכת האומדנים של קבוצות קטנות לעבר המרכז המשותף, דרך ההיפר-פרמטרים. כך רעש מדגם קטן לא שולט באומדן.</p></details>
+<details class="fold"><summary>מה מייצגים ההיפר-פרמטרים בסיפור שלנו?</summary><p>את "הנטייה הטבעית שלי לענות" - התפלגות משותפת שממנה נובעים הפרמטרים של כל אדם.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-9.html">← שיעור 9</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-11.html">שיעור 11 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

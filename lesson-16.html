@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שיעור 16: GP רב-ממדי: מינרלים ושרתים</title>
+<meta name="description" content="קורס מודלים בייסיאניים בעברית פשוטה - כל שיעור עם הסבר, קוד להעתקה, פלט צפוי ותרגיל">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<nav class="nav"><a href="index.html">בית</a><a href="assignments.html">משימות</a></nav>
+<h1>שיעור 16: GP רב-ממדי: מינרלים ושרתים</h1>
+<p class="fact">תהליכים גאוסיאניים</p>
+<p class="intro">שני ממדי קלט - מיפוי מינרלים ב-Walker Lake והקצאת שרתים לפי שעה ואזור</p>
+<p class="src">מבוסס על notebook 16 (multidimensional_gp)</p>
+<h2 class="grouplabel">מה נלמד</h2>
+<ol class="steps"><li>להכליל GP מממד אחד לשניים ויותר</li><li>לחלק נתונים ל-train/test ולמדוד MSE</li><li>לראות GP מנצח רגרסיה לינארית על נתונים מחוספסים</li><li>לתרגם תחזית GP להחלטה כלכלית (עלות שרתים)</li></ol>
+<h2 class="grouplabel">השיעור</h2>
+<h3 class="lh">מעבר לשני ממדים</h3>
+<p>עד עכשיו ל-GP היה קלט אחד (x). אבל הרבה בעיות אמיתיות הן מרחביות: היכרות של משהו לפי מיקום. מאגר Walker Lake המפורסם: דגימות מינרלים על פני שטח, עם שתי קואורדינטות כקלט. אותו GP בדיוק - רק שהמרחק d בקרנל הוא עכשיו מרחק בין נקודות במפה, ויש ℓ נפרד לכל ממד.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">GP מרחבי עם train/test</span><button type="button" class="copy" data-code="from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X_obs, y_obs)
+
+with pm.Model() as spatial_model:
+    l = pm.HalfCauchy(&quot;l&quot;, beta=3, shape=(2,))   # ℓ לכל ממד
+    sf2 = pm.HalfCauchy(&quot;sf2&quot;, beta=3)
+    cov = sf2**2 * pm.gp.cov.Matern32(2, ls=l)
+    σ = pm.HalfCauchy(&quot;σ&quot;, beta=3)
+
+    gp = pm.gp.Marginal(cov_func=cov)
+    y_ = gp.marginal_likelihood(&quot;y&quot;, X=X_train, y=y_train, noise=σ)">העתק</button></div><pre><code>from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X_obs, y_obs)
+
+with pm.Model() as spatial_model:
+    l = pm.HalfCauchy("l", beta=3, shape=(2,))   # ℓ לכל ממד
+    sf2 = pm.HalfCauchy("sf2", beta=3)
+    cov = sf2**2 * pm.gp.cov.Matern32(2, ls=l)
+    σ = pm.HalfCauchy("σ", beta=3)
+
+    gp = pm.gp.Marginal(cov_func=cov)
+    y_ = gp.marginal_likelihood("y", X=X_train, y=y_train, noise=σ)</code></pre></figure>
+<h3 class="lh">מדד הצלחה: MSE על סט מבחן</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">תחזית ומדידת שגיאה</span><button type="button" class="copy" data-code="with spatial_model:
+    mu_preds, cov_preds = gp.predict(X_test, point=mp)
+
+((mu_preds - y_test)**2).mean()   # MSE">העתק</button></div><pre><code>with spatial_model:
+    mu_preds, cov_preds = gp.predict(X_test, point=mp)
+
+((mu_preds - y_test)**2).mean()   # MSE</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>השוואת קרנלים מראה ש-Matern 3/2 נותן את ה-MSE הנמוך ביותר - לא מפתיע, כי נתוני המינרלים מחוספסים (משנים חדות בין נקודות). רגרסיה לינארית על אותם נתונים נותנת MSE גבוה בהרבה: מישור לא מסוגל לתפוס שטח מחוספס.</div>
+<h3 class="lh">שאלה מרחבית: מה הסיכוי למצוא הרבה מינרל בנקודה?</h3>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">הסתברות בקואורדינטה ספציפית</span><button type="button" class="copy" data-code="with spatial_model:
+    mu_p, cov_p = gp.predict(np.array([[150, 200]]), point=mp)
+
+from scipy.stats import norm
+z = (200 - mu_p[0]) / np.sqrt(cov_p[0])
+1 - norm.cdf(z)   # ההסתברות שהמינרל ב-(150, 200) גדול מ-200">העתק</button></div><pre><code>with spatial_model:
+    mu_p, cov_p = gp.predict(np.array([[150, 200]]), point=mp)
+
+from scipy.stats import norm
+z = (200 - mu_p[0]) / np.sqrt(cov_p[0])
+1 - norm.cdf(z)   # ההסתברות שהמינרל ב-(150, 200) גדול מ-200</code></pre></figure>
+<h3 class="lh">יישום: הקצאת שרתים לפי שעה ואזור</h3>
+<p>הדוגמה השנייה מחברת הכל: אתם מנהלים תשתית, הביקוש לשרתים משתנה לפי שעה ביממה וגודל אזור, ואתם חייבים לקנות קיבולת לפני שהביקוש מתגלה. עלות: 10$ לשרת מוזמן, ו-30$ קנס על כל שרת שחסר בפועל. האסטרטגיה: לאמוד את פונקציית הביקוש (דו-ממדית: שעה × גודל אזור) עם GP, ולקנות לפי התחזית.</p>
+<figure class="cb" dir="ltr"><div class="cbh"><span class="cbt" dir="rtl">פונקציית עלות להשוואת אסטרטגיות</span><button type="button" class="copy" data-code="def cost_func(demand, supply, hour, size, a1=10, a2=30):
+    return a1 * supply + a2 * max(0, demand - supply)
+
+# משווים: הקצאה לפי תחזית GP מול הקצאה לפי רגרסיה לינארית
+# מריצים 50 מקרי ביקוש אקראיים וסוכמים עלות">העתק</button></div><pre><code>def cost_func(demand, supply, hour, size, a1=10, a2=30):
+    return a1 * supply + a2 * max(0, demand - supply)
+
+# משווים: הקצאה לפי תחזית GP מול הקצאה לפי רגרסיה לינארית
+# מריצים 50 מקרי ביקוש אקראיים וסוכמים עלות</code></pre></figure>
+<div class="exp"><span class="expt">פלט צפוי</span>העלות הכוללת של אסטרטגיית ה-GP נמוכה משמעותית מהלינארית - כי תחזית הביקוש מדויקת יותר, וכל טעות עולה 30$ לשרת. דיוק חיזוי = כסף.</div>
+<p class="key">GP רב-ממדי הוא אותו GP: הקרנל פשוט מודד מרחק במרחב רחב יותר. והסיבה להשקיע בו היא כלכלית - תחזית טובה יותר מתרגמת לעלות נמוכה יותר.</p>
+<h2 class="grouplabel">תרגיל</h2>
+<details class="fold"><summary>הצג את התרגיל</summary><p>בבעיית השרתים: מה יקרה ליתרון של ה-GP אם נעלה את הקנס a2 מ-30 ל-100? למה?</p></details>
+<details class="fold"><summary>הצג פתרון</summary><p>היתרון יגדל. כשהקנס על חוסר גבוה, טעויות חיזוי יקרות יותר, והמודל המדויק יותר (GP) חוסך הרבה יותר כסף. זה כלל כללי: ככל שטעות יקרה יותר, שווה יותר להשקיע במודל טוב יותר.</p></details>
+<h2 class="grouplabel">בדקו את עצמכם</h2>
+<details class="fold"><summary>מה משתנה בקרנל כשעוברים לשני ממדים?</summary><p>המרחק נמדד במרחב דו-ממדי, ולכל ממד אפשר לתת ℓ משלו (shape=(2,)) - כי קנה המידה של קואורדינטה ושל זמן שונה.</p></details>
+<details class="fold"><summary>למה Matern 3/2 ניצח כאן?</summary><p>הנתונים מחוספסים עם שינויים חדים - קרנל חלק מדי היה מחליק אותם ומפספס.</p></details>
+<details class="fold"><summary>איך תרגמנו את התחזית לכסף?</summary><p>בנינו פונקציית עלות (מחיר הקצאה + קנס על חוסר) והשווינו את העלות הכוללת של אסטרטגיות חיזוי שונות על מקרים אקראיים.</p></details>
+<nav class="lnav">
+<a class="btn" href="lesson-15.html">← שיעור 15</a>
+<a class="btn" href="index.html">כל השיעורים</a>
+<a class="btn" href="lesson-17.html">שיעור 17 →</a>
+</nav>
+<footer>כל הזכויות שמורות לראובן קזורר.<br>נבנה על חומרי הקורס "מודלים בייסיאניים" של <a href="https://github.com/eliransher/Bayesian_models" target="_blank" rel="noopener">אלירן שר, אוניבריסטת אריאל</a> - קרדיט מלא למקור.</footer>
+</div>
+<script>document.addEventListener('click',e=>{const b=e.target.closest('.copy');if(!b)return;const c=b.dataset.code;const done=()=>{b.textContent='הועתק ✓';setTimeout(()=>b.textContent='העתק',1600)};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done).catch(()=>fallback())}else fallback();function fallback(){const t=document.createElement('textarea');t.value=c;document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(_){/* noop */}document.body.removeChild(t);done()}});</script>
+</body>
+</html>

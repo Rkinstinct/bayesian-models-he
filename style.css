@@ -1,0 +1,49 @@
+
+:root{--ink:#2b2729;--ink2:#6f6a70;--hair:#e5e0da;--teal:#2f7e76;--bg:#faf8f6;}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,'Segoe UI',Roboto,'Noto Sans Hebrew',Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;direction:rtl;text-align:right}
+.wrap{max-width:720px;margin:0 auto;padding:16px 16px 64px}
+.nav{display:flex;gap:16px;padding:8px 4px 16px}
+.nav a{color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;padding:6px 4px}
+.hero{width:100%;border-radius:12px;display:block;margin:8px 0 16px}
+h1{font-size:1.7rem;line-height:1.25;margin:8px 0 4px}
+.fact{color:var(--teal);font-weight:600;font-size:.95rem;margin-bottom:8px}
+.intro{color:var(--ink2);font-size:.95rem;margin-bottom:20px}
+h2.grouplabel{font-size:1.05rem;margin:26px 0 10px;padding-top:14px;border-top:1px solid var(--hair)}
+h2.grouplabel:first-of-type{border-top:none;padding-top:0}
+ol.steps{margin:0 18px 8px 0;display:grid;gap:6px}
+ol.steps li{line-height:1.55}
+.ll{display:grid;gap:8px}
+.li{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--hair);border-radius:12px;padding:12px 14px;text-decoration:none;color:var(--ink);background:#fff}
+.li:active{background:#f4f1ee}
+.ln{flex:0 0 auto;min-width:30px;height:30px;border-radius:50%;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px}
+.lt{display:grid;gap:2px}
+.lname{font-weight:600;font-size:14.5px;line-height:1.4}
+.lsub{color:var(--ink2);font-size:12.5px;line-height:1.45}
+.gloss p{margin:0 0 8px;font-size:14px}
+.callout{border:1px solid var(--hair);border-right:3px solid var(--teal);background:#fff;border-radius:10px;padding:12px 14px;margin:24px 0;font-size:14px}
+.callout p{margin-top:4px;color:var(--ink2)}
+.src{color:var(--ink2);font-size:12px;margin:2px 0 14px}
+.lh{font-weight:600;font-size:16px;margin:24px 0 6px}
+p{margin:0 0 12px;font-size:15.5px;line-height:1.7}
+.key{background:#f3f7f6;border-radius:8px;padding:10px 14px;font-weight:600;font-size:15.5px;margin:12px 0}
+.lb{margin:0 18px 12px 0;display:grid;gap:6px;font-size:15px}
+.ic{direction:ltr;unicode-bidi:embed;background:#f0edea;border-radius:4px;padding:0 4px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.88em}
+.formula{background:#f5f2ef;border-radius:8px;padding:12px 16px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;text-align:center;margin:12px 0;overflow-x:auto}
+.cb{margin:14px 0;border:1px solid var(--hair);border-radius:10px;overflow:hidden;background:#fcfbf9}
+.cbh{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--hair);background:#f3f0ec}
+.cbt{font-size:12px;color:var(--ink2)}
+.copy{font:inherit;font-size:12px;border:1px solid var(--hair);background:#fff;border-radius:6px;padding:4px 12px;cursor:pointer;min-height:32px;color:var(--ink)}
+.copy:active{background:#eee}
+.cb pre{margin:0;padding:12px 14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cb code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;white-space:pre}
+.exp{border-right:3px solid var(--teal);background:#f3f7f6;border-radius:8px;padding:10px 12px;margin:6px 0 14px;font-size:14px;line-height:1.55}
+.expt{display:block;font-weight:600;font-size:12px;color:var(--teal);margin-bottom:2px}
+details.fold{border:1px solid var(--hair);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:#fff}
+details.fold summary{cursor:pointer;font-weight:600;font-size:14px;min-height:24px}
+details.fold p{margin:8px 0 0;font-size:14px;line-height:1.6}
+.lnav{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--hair)}
+.btn{display:inline-block;border:1px solid var(--hair);background:#fff;border-radius:8px;padding:8px 14px;text-decoration:none;color:var(--ink);font-size:13.5px;font-weight:600}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--hair);color:var(--ink2);font-size:12px;text-align:center;line-height:1.6}
+footer a{color:var(--teal)}
